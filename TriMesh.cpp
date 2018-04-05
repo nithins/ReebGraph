@@ -1,9 +1,13 @@
 #include "TriMesh.hpp"
 
-#include <QFile>
-#include <QTextStream>
-#include <QDebug>
-#include <QSet>
+#include <fstream>
+//#include <windows.h>
+#include <iostream>
+#include <set>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <algorithm>
 
 namespace contourtree {
 
@@ -20,9 +24,9 @@ int TriMesh::getVertexCount() {
     return nv;
 }
 
-int TriMesh::getStar(int64_t v, QVector<int64_t> &star) {
+int TriMesh::getStar(int64_t v, std::vector<int64_t> &star) {
     int ct = 0;
-    foreach(uint32_t vv, vertices[v].adj) {
+   for(uint32_t vv :vertices[v].adj) {
         star[ct] = vv;
         ct ++;
     }
@@ -42,31 +46,42 @@ unsigned char TriMesh::getFunctionValue(int64_t v) {
     return this->fnVals[v];
 }
 
-void TriMesh::loadData(QString fileName)
+void TriMesh::loadData(std::string fileName)
 {
-    QFile ip(fileName);
-    if(!ip.open(QFile::ReadOnly | QIODevice::Text)) {
-        qDebug() << "could not read file" << fileName;
+    std::ifstream ip(fileName);
+    if(!ip.is_open()) {
+        std::cout << "could not read file" << fileName;
     }
-    QTextStream text(&ip);
+	std::string line;
 
-    text.readLine();
-    QStringList line = text.readLine().split(" ");
-    nv = QString(line[0]).toInt();
-    int nt = QString(line[1]).toInt();
+	std::getline(ip, line);
+
+	std::stringstream ss(line);
+
+	int nt = 0;
+
+	ss >> nv;
+	ss >> nt;
 
     vertices.resize(nv);
     fnVals.resize(nv);
-    for(int i = 0;i < nv;i ++) {
-        line = text.readLine().split(" ");
-        int fn = QString(line[3]).toInt();
-        fnVals[i] = fn;
-    }
-    for(int i = 0;i < nt;i ++) {
-        line = text.readLine().split(" ");
-        int v1 = QString(line[1]).toInt();
-        int v2 = QString(line[2]).toInt();
-        int v3 = QString(line[3]).toInt();
+	
+	for(int i = 0; i < nv; i++) {
+		std::getline(ip, line);
+		int fn = line[3];
+		fnVals[i] = fn;
+	}
+
+    //for(int i = 0;i < nv;i ++) {
+        //line = text.readLine().split(" ");
+       // int fn = std::string(line[3]).toInt();
+        //fnVals[i] = fn;
+
+    for(int i = 0; i < nt; i++) {
+        std::getline(ip,line);
+        int v1 = line[1];
+        int v2 = line[2];
+        int v3 = line[3];
 
         vertices[v1].adj.insert(v2);
         vertices[v1].adj.insert(v3);
@@ -78,9 +93,9 @@ void TriMesh::loadData(QString fileName)
 
     maxStar = 0;
     for(int i = 0;i < nv;i ++) {
-        maxStar = std::max(maxStar,vertices[i].adj.size());
+		maxStar = std::max<int>(maxStar, vertices[i].adj.size());
     }
-    qDebug() << maxStar;
+    std::cout << maxStar;
 }
 
 }

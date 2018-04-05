@@ -2,14 +2,14 @@
 #define CONTOURTREEDATA_HPP
 
 #include <stdint.h>
-#include <QVector>
-#include <QHash>
+#include <vector>
+#include <map>
 
 namespace contourtree {
 
 struct Node {
-    QVector<uint32_t> next;
-    QVector<uint32_t> prev;
+    std::vector<uint32_t> next;
+    std::vector<uint32_t> prev;
 };
 
 struct Arc {
@@ -21,10 +21,10 @@ struct Arc {
 class ContourTreeData
 {
 public:
-    ContourTreeData();
+	ContourTreeData();
 
-    void loadBinFile(QString fileName);
-    void loadTxtFile(QString fileName);
+	void loadBinFile(std::string fileName);
+    void loadTxtFile(std::string fileName);
 
 protected:
     void loadData(const std::vector<int64_t>& nodeids, const std::vector<unsigned char>& nodefns, const std::vector<char>& nodeTypes, const std::vector<int64_t>& iarcs);
@@ -33,13 +33,13 @@ public:
     uint32_t noNodes;
     uint32_t noArcs;
 
-    QVector<Node> nodes;
-    QVector<Arc> arcs;
-    QVector<float> fnVals;
-    QVector<char> type;
-    QVector<int64_t> nodeVerts;
+    std::vector<Node> nodes;
+    std::vector<Arc> arcs;
+    std::vector<float> fnVals;
+    std::vector<char> type;
+    std::vector<int64_t> nodeVerts;
 
-    QHash<int64_t, uint32_t> nodeMap;
+    std::map<int64_t, uint32_t> nodeMap;
 };
 
 } // namespace contourtree

@@ -1,13 +1,11 @@
 #ifndef TEST_HPP
 #define TEST_HPP
 
-#include <QDebug>
-
 #include "DisjointSets.hpp"
 #include <iostream>
-#include <Grid3D.hpp>
+#include "Grid3D.hpp"
 #include <chrono>
-#include <MergeTree.hpp>
+#include "MergeTree.hpp"
 #include "ContourTreeData.hpp"
 #include "SimplifyCT.hpp"
 #include "Persistence.hpp"
@@ -17,11 +15,13 @@
 #include <fstream>
 #include <cmath>
 
+//
+using namespace contourtree;
+
 void testDisjointSets() {
     int numElements = 128;
-    int numInSameSet = 16;
-
-    DisjointSets<int64_t> ds(numElements);
+    int numInSameSet = 16;	
+	DisjointSets<uint64_t> ds(numElements);
     int set1, set2;
 
     for (int k = 1; k < numInSameSet; k *= 2) {
@@ -41,19 +41,18 @@ void testDisjointSets() {
 }
 
 void testGrid() {
-    qDebug() << "in test grid";
+    std::cout << "in test grid";
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
     Grid3D grid(256,257,471);
     end = std::chrono::system_clock::now();
-    qDebug() << "Test 1 - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
-
+    std::cout << "Test 1 - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
     start = std::chrono::system_clock::now();
     grid.loadGrid("/home/harishd/Desktop/Projects/Fish/data/Fish_256/Fish_256.raw");
-    MergeTree ct;
+	MergeTree ct;
     ct.computeTree(&grid,TypeJoinTree);
     end = std::chrono::system_clock::now();
-    qDebug() << "Test 2 - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "Test 2 - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     ct.output("/home/harishd/Desktop/Projects/Fish/data/Fish_256/Fish_256", TypeJoinTree);
 }
@@ -65,7 +64,7 @@ void testSimplification3() {
     start = std::chrono::system_clock::now();
     ctdata.loadBinFile("../data/Fish_256");
     end = std::chrono::system_clock::now();
-    qDebug() << "Loading contour tree - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "Loading contour tree - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     start = std::chrono::system_clock::now();
     SimplifyCT sim;
@@ -73,7 +72,7 @@ void testSimplification3() {
     Persistence per(ctdata);
     sim.simplify(&per);
     end = std::chrono::system_clock::now();
-    qDebug() << "simplification - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "simplification - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     sim.outputOrder("../data/Fish_256");
 
@@ -83,9 +82,9 @@ void testSimplification3() {
 //    simo.setInput(&ctdata);
 //    simo.simplify(order,-1,0.2f);
 //    end = std::chrono::system_clock::now();
-//    qDebug() << "simplification using order - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+//    std::cout << "simplification using order - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
-//    qDebug() << "counting remaining features";
+//    std::cout << "counting remaining features";
 //    int ct = 0;
 //    for(int i = order.size() - 1;i >= 0;i --) {
 //        if(simo.removed[order[i]]) {
@@ -93,18 +92,17 @@ void testSimplification3() {
 //        }
 //        ct ++;
 //    }
-//    qDebug() << "Remaining features after simplification: " << ct << "of" << order.size();
-//    qDebug() << "done!";
+//    std::cout<< "Remaining features after simplification: " << ct << "of" << order.size();
+//    std::cout << "done!";
 }
 
 void testSimplification2() {
     ContourTreeData ctdata;
-
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
     ctdata.loadBinFile("../data/Fish_256");
     end = std::chrono::system_clock::now();
-    qDebug() << "Loading contour tree - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "Loading contour tree - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     start = std::chrono::system_clock::now();
     SimplifyCT sim;
@@ -112,7 +110,7 @@ void testSimplification2() {
     Persistence per(ctdata);
     sim.simplify(&per);
     end = std::chrono::system_clock::now();
-    qDebug() << "simplification - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "simplification - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     start = std::chrono::system_clock::now();
     std::vector<uint32_t> order = sim.order;
@@ -120,19 +118,18 @@ void testSimplification2() {
     simo.setInput(&ctdata);
     simo.simplify(order);
     end = std::chrono::system_clock::now();
-    qDebug() << "simplification using order - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "simplification using order - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
-    qDebug() << "testing equivalence";
+	std::cout << "testing equivalence";
     for(int i = 0;i < order.size();i ++) {
-        Branch b1 = sim.branches.at(order[i]);
+        Branch  b1 = sim.branches.at(order[i]);
         Branch b2 = simo.branches.at(order[i]);
         assert(b1.from != b2.from || b1.to != b2.to);
         assert(b1.parent == b2.parent);
         assert(b1.children == b2.children);
         assert(b1.arcs == b2.arcs);
     }
-    qDebug() << "done!";
-
+    std::cout << "done!";
 }
 
 void testSimplification1() {
@@ -142,7 +139,7 @@ void testSimplification1() {
     start = std::chrono::system_clock::now();
     ctdata.loadTxtFile("C:/Users/harishd/Desktop/Courses/Topology-2017/data/2d/assignment.rg");
     end = std::chrono::system_clock::now();
-    qDebug() << "Loading contour tree - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "Loading contour tree - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     start = std::chrono::system_clock::now();
     SimplifyCT sim;
@@ -150,16 +147,15 @@ void testSimplification1() {
     Persistence per(ctdata);
     sim.simplify(&per);
     end = std::chrono::system_clock::now();
-    qDebug() << "simplification - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "simplification - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     for(int i = 0;i < sim.order.size();i ++) {
         Branch b1 = sim.branches.at(sim.order[i]);
         int v1 = b1.from;
         int v2 = b1.to;
-        qDebug() << ctdata.nodeVerts[v1] << ctdata.nodeVerts[v2];
+        std::cout << ctdata.nodeVerts[v1] << ctdata.nodeVerts[v2];
     }
-    qDebug() << "done!";
-
+    std::cout << "done!";
 }
 
 void testPriorityQueue() {
@@ -173,7 +169,7 @@ void testPriorityQueue() {
     while(!sim.queue.empty()) {
         uint32_t top = sim.queue.top();
         sim.queue.pop();
-        qDebug() << top;
+        std::cout << top;
     }
 }
 
@@ -182,18 +178,18 @@ void testMergeTree() {
     tri.loadData("C:/Users/harishd/Desktop/Courses/Topology-2017/data/2d/assignment.off");
     MergeTree ct;
     ct.computeTree(&tri,TypeContourTree);
-    qDebug() << "done";
+    std::cout << "done";
     ct.output("C:/Users/harishd/Desktop/Courses/Topology-2017/data/2d/assignment",TypeContourTree);
 
     ContourTreeData ctdata;
     ctdata.loadBinFile("C:/Users/harishd/Desktop/Courses/Topology-2017/data/2d/assignment");
-    qDebug() << "************** Merge Tree ********************";
+    std::cout << "************** Merge Tree ********************";
     for(size_t i = 0;i < ctdata.noNodes;i ++) {
-        qDebug() << ctdata.nodeVerts[i] << ctdata.fnVals[i] << (int)(ctdata.type[i]);
+        std::cout << ctdata.nodeVerts[i] << ctdata.fnVals[i] << (int)(ctdata.type[i]);
     }
 
     for(size_t i = 0;i < ctdata.noArcs;i ++) {
-        qDebug() <<  ctdata.nodeVerts[ctdata.arcs[i].from] <<  ctdata.nodeVerts[ctdata.arcs[i].to];
+        std::cout <<  ctdata.nodeVerts[ctdata.arcs[i].from] <<  ctdata.nodeVerts[ctdata.arcs[i].to];
     }
 
     SimplifyCT sim;
@@ -201,39 +197,38 @@ void testMergeTree() {
     Persistence per(ctdata);
     sim.simplify(&per);
     sim.outputOrder("C:/Users/harishd/Desktop/Courses/Topology-2017/data/2d/assignment");
-    qDebug() << "************** All branches ********************";;
+    std::cout << "************** All branches ********************";
     for(int i = 0;i < sim.order.size();i ++) {
         Branch b1 = sim.branches.at(sim.order[i]);
         int v1 = b1.from;
         int v2 = b1.to;
-        qDebug() << ctdata.nodeVerts[v1] << ctdata.nodeVerts[v2];
+        std::cout << ctdata.nodeVerts[v1] << ctdata.nodeVerts[v2];
     }
-
 
     SimplifyCT sim2;
     sim2.setInput(&ctdata);
     sim2.simplify(sim.order,3);
-    qDebug() << "************** Remaining branches ********************";;
+    std::cout << "************** Remaining branches ********************";
     for(int i = sim.order.size() - 1;i >= 0;i --) {
         if(sim2.removed[sim.order[i]]) {
             break;
-        }
-        Branch b1 = sim2.branches.at(sim.order[i]);
-        int v1 = b1.from;
-        int v2 = b1.to;
-        qDebug() << ctdata.nodeVerts[v1] << ctdata.nodeVerts[v2];
+		}
+		Branch b1 = sim2.branches.at(sim.order[i]);
+		int v1 = b1.from;
+		int v2 = b1.to;
+		std::cout << ctdata.nodeVerts[v1] << ctdata.nodeVerts[v2];	
     }
 
-    qDebug() << "done!";
+    std::cout << "done!";
 }
 
 void toyProcessing() {
     // the actual raw file without the extension. the extensions will be added as and when needed.
-    QString data = "../data/toy";
+    std::string data = "../data/toy";
 
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
-    Grid3D grid(128,128,128);
+	Grid3D grid(128, 128, 128);
     end = std::chrono::system_clock::now();
 
     start = std::chrono::system_clock::now();
@@ -242,7 +237,7 @@ void toyProcessing() {
     contourtree::TreeType tree = TypeJoinTree;
     ct.computeTree(&grid,tree);
     end = std::chrono::system_clock::now();
-    qDebug() << "Time to compute contour tree: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "Time to compute contour tree: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
     ct.output(data, tree);
 
 
@@ -262,36 +257,36 @@ void toyProcessing() {
     }
     sim.simplify(simFn);
     end = std::chrono::system_clock::now();
-    qDebug() << "Time to simplify: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
+    std::cout << "Time to simplify: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
     sim.outputOrder(data);
-    qDebug() << "done";
+    std::cout << "done";
 }
 
 void testApi() {
     // the actual raw file without the extension. the extensions will be added as and when needed.
-    QString data = "../data/Mass-Scan-Slice-Data-1-256-256-256-cropped";
+     std::string data = "../data/Mass-Scan-Slice-Data-1-256-256-256-cropped";
     TopologicalFeatures tf;
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
     tf.loadData(data,true);
     std::vector<Feature> features = tf.getFeatures(-1,0.1f);
     end = std::chrono::system_clock::now();
-    qDebug() << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
-    qDebug() << "no. of features:" << features.size() << "\n";
+    std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
+    std::cout << "no. of features:" << features.size() << "\n";
 
 //    start = std::chrono::system_clock::now();
 //    features = tf.getFeatures(-1,0.2f);
 //    end = std::chrono::system_clock::now();
-//    qDebug() << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
-//    qDebug() << "no. of features:" << features.size() << "\n";
+//    std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
+//    std::cout << "no. of features:" << features.size() << "\n";
 
-    qDebug() << "\n\n Partitioned features";
+    std::cout << "\n\n Partitioned features";
     start = std::chrono::system_clock::now();
     std::vector<Feature> features1 = tf.getFeatures(-1,0.1f);
     end = std::chrono::system_clock::now();
-    qDebug() << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
-    qDebug() << "no. of features:" << features.size() << "\n";
+    std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
+    std::cout << "no. of features:" << features.size() << "\n";
 
     assert(features1.size() == features.size());
     for(int i = 0;i < features.size();i ++) {
@@ -301,16 +296,15 @@ void testApi() {
 //    start = std::chrono::system_clock::now();
 //    features = tf.getFeaturesPart(-1,0.2f);
 //    end = std::chrono::system_clock::now();
-//    qDebug() << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
-//    qDebug() << "no. of features:" << features.size() << "\n";
-
+//    std::std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
+//    std::std::cout << "no. of features:" << features.size() << "\n";
 }
 
-void insert(QVector<int> &cx, QVector<int> &cy, QVector<int> &cz, QVector<int> &rad, int x,int y,int z, int r) {
-    cx << x;
-    cy << y;
-    cz << z;
-    rad << r;
+void insert(std::vector<int> &cx, std::vector<int> &cy, std::vector<int> &cz, std::vector<int> &rad, int x,int y,int z, int r) {
+    cx.push_back(x);
+    cy.push_back(y);
+    cz.push_back(z);
+    rad.push_back(r);
 }
 
 void generateData(bool mini = false) {
@@ -324,7 +318,7 @@ void generateData(bool mini = false) {
     } else {
         volume.resize(dimx * dimy * dimz, 0);
     }
-    QVector<int> centerx, centery, centerz, rad;
+    std::vector<int> centerx, centery, centerz, rad;
 
 //    insert(centerx,centery,centerz,30 ,30 , 30);
 //    insert(centerx,centery,centerz,100,100, 30);
@@ -374,29 +368,29 @@ void generateData(bool mini = false) {
 
 void testFeatures() {
     // the actual raw file without the extension. the extensions will be added as and when needed.
-    QString data = "../data/ContourTree/Fish_256";
+    std::string data = "../data/ContourTree/Fish_256";
     TopologicalFeatures tf;
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
     tf.loadData(data);
     std::vector<Feature> features = tf.getFeatures(20,0);
-//    std::vector<Feature> features = tf.getFeaturesPart(10,0);
+   //std::vector<Feature> features = tf.getFeaturesPart(10,0);
     end = std::chrono::system_clock::now();
-    qDebug() << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
-    qDebug() << "no. of features:" << features.size() << "\n";
+    std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
+    std::cout << "no. of features:" << features.size() << "\n";
 
     // read part file
     int dimx = 256;
     int dimy = 257;
     int dimz = 471;
 
-    qDebug() << "reading part";
-    QVector<uint32_t> part(dimx * dimy * dimz);
-    std::ifstream ip((data + ".part.raw").toStdString(), std::ios::binary);
+    std::cout << "reading part";
+    std::vector<uint32_t> part(dimx * dimy * dimz);
+    std::ifstream ip((data + ".part.raw"), std::ios::binary);
     ip.read((char *)(part.data()), part.size() * sizeof(uint32_t));
     ip.close();
 
-    qDebug() << "mapping features to arcs";
+    std::cout << "mapping features to arcs";
     std::vector<uint32_t> arcMap(tf.ctdata.noArcs, 0);
     for(int i = 0;i < features.size();i ++) {
         for(int ano: features[i].arcs) {
@@ -404,22 +398,22 @@ void testFeatures() {
         }
     }
 
-    qDebug() << "mapping voxels to features";
+    std::cout << "mapping voxels to features";
     for(int i = 0;i < part.size();i ++) {
         part[i] = arcMap[part[i]];
     }
 
-    qDebug() << "writing features";
-    std::ofstream op((data + ".test-features.raw").toStdString(), std::ios::binary);
+    std::cout << "writing features";
+    std::ofstream op((data + ".test-features.raw"), std::ios::binary);
     op.write((char *)(part.data()), part.size() * sizeof(uint32_t));
     ip.close();
 }
 
 void testConnectivity() {
-//    QString data = "../data/ContourTree/Fish_256";
+//    std::string data = "../data/ContourTree/Fish_256";
 //    Grid3D grid(256,257,471);
 
-    QString data = "../data/Cameroon/Cameroon_256";
+    std::string data = "../data/Cameroon/Cameroon_256";
     Grid3D grid(256,256,527);
 
     // read part file
@@ -427,30 +421,30 @@ void testConnectivity() {
     int dimy = 256;
     int dimz = 527;
 
-    qDebug() << "reading part";
+    std::cout << "reading part";
     std::vector<uint32_t> part(dimx * dimy * dimz);
-    std::ifstream ip((data + ".part.raw").toStdString(), std::ios::binary);
+    std::ifstream ip((data + ".part.raw"), std::ios::binary);
     ip.read((char *)(part.data()), part.size() * sizeof(uint32_t));
     ip.close();
 
-
-    qDebug() << "reading ct";
+    std::cout << "reading ct";
     ContourTreeData ctdata;
     ctdata.loadBinFile(data);
 
     uint32_t noArcs = ctdata.noArcs;
-    std::vector<QSet<uint32_t> > arcs(noArcs);
+    std::vector<std::set<uint32_t> > arcs(noArcs);
 
-    qDebug() << "arranging features";
+    std::cout << "arranging features";
     for(uint32_t i = 0;i < part.size();i ++) {
         uint32_t ano = part[i];
-        arcs[ano] << i;
+        arcs[ano].insert(i);
     }
 
     for(int i = 0;i < noArcs;i ++) {
         uint32_t from = ctdata.nodeVerts[ctdata.arcs[i].from];
         uint32_t to = ctdata.nodeVerts[ctdata.arcs[i].to];
-        arcs[i] << from << to;
+        arcs[i].insert(from);
+        arcs[i].insert(to);	
     }
 
     TopologicalFeatures tf;
@@ -459,71 +453,69 @@ void testConnectivity() {
     tf.loadData(data);
     std::vector<Feature> features = tf.getFeatures(15,0,0.3);
     end = std::chrono::system_clock::now();
-    qDebug() << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
-    qDebug() << "no. of features:" << features.size() << "\n";
-
+    std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
+    std::cout << "no. of features:" << features.size() << "\n";
 
     DisjointSets<int32_t> dj;
-    QVector<int64_t> star;
-    QSet<uint32_t> comps;
+    std::vector<int64_t> star;
+    std::set<uint32_t> comps;
     star.resize(grid.getMaxDegree());
     bool single = true;
     for(int i = 0;i < features.size();i ++) {
-        qDebug() << "processing feature" << i;
+        std::cout << "processing feature" << i;
         dj = DisjointSets<int32_t>(part.size());
-        QSet<uint32_t> set;
+        std::set<uint32_t> set;
         for(uint32_t ano: features[i].arcs) {
-            foreach(uint32_t v, arcs[ano])
-                set << v;
+            for(uint32_t v : arcs[ano])
+               set.insert(v);
         }
         comps.clear();
 
-        foreach(uint32_t v,set) {
+        for(uint32_t v : set) {
             int ct = grid.getStar(v,star);
 
             for(int j = 0;j < ct;j ++) {
-                if(set.contains(star[j])) {
+                if(set.count(star[j])) {
                     dj.merge(v,star[j]);
                 }
             }
         }
-        foreach(uint32_t v,set) {
-            comps << dj.find(v);
+        for(uint32_t v : set) {
+            comps.insert(dj.find(v));
         }
 
         if(comps.size() != 1) {
             single = false;
-            qDebug() << "Feature" << i << "has " << comps.size() << "components" << set.size();
+            std::cout << "Feature" << i << "has " << comps.size() << "components" << set.size();
         }
     }
-
-    qDebug() << "all arcs have a single component:" << single;
+    std::cout << "all arcs have a single component:" << single;
 }
 void toyFeatures() {
     // the actual raw file without the extension. the extensions will be added as and when needed.
-    QString data = "../data/toy";
+    std::string data = "../data/toy";
     TopologicalFeatures tf;
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
     tf.loadData(data);
-    std::vector<Feature> features = tf.getFeatures(2,0);
+    std::vector <Feature> features = tf.getFeatures(2,0);
 //    std::vector<Feature> features = tf.getFeaturesPart(10,0);
     end = std::chrono::system_clock::now();
-    qDebug() << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
-    qDebug() << "no. of features:" << features.size() << "\n";
+    std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
+    std::cout << "no. of features:" << features.size() << "\n";
 
     // read part file
     int dimx = 128;
     int dimy = 128;
     int dimz = 128;
 
-    qDebug() << "reading part";
-    QVector<uint32_t> part(dimx * dimy * dimz);
-    std::ifstream ip((data + ".part.raw").toStdString(), std::ios::binary);
+    std::cout << "reading part";
+    std::vector<uint32_t> part(dimx * dimy * dimz);
+    std::ifstream ip((data + ".part.raw"), std::ios::binary);
     ip.read((char *)(part.data()), part.size() * sizeof(uint32_t));
     ip.close();
 
-    qDebug() << "mapping features to arcs";
+    std::cout << "mapping features to arcs";
     std::vector<uint32_t> arcMap(tf.ctdata.noArcs, 0);
     for(int i = 0;i < features.size();i ++) {
         for(int ano: features[i].arcs) {
@@ -531,20 +523,20 @@ void toyFeatures() {
         }
     }
 
-    qDebug() << "mapping voxels to features";
+    std::cout << "mapping voxels to features";
     for(int i = 0;i < part.size();i ++) {
         part[i] = arcMap[part[i]];
     }
 
-    qDebug() << "writing features";
-    std::ofstream op((data + ".test-features.raw").toStdString(), std::ios::binary);
+    std::cout << "writing features";
+    std::ofstream op((data + ".test-features.raw"), std::ios::binary);
     op.write((char *)(part.data()), part.size() * sizeof(uint32_t));
     ip.close();
 }
 
 int oldMain(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+    //QCoreApplication a(argc, argv);
 //    testGrid();
 //    testSimplification3();
 //    testPriorityQueue();
@@ -558,8 +550,7 @@ int oldMain(int argc, char *argv[])
     toyFeatures();
 
     exit(0);
-    return a.exec();
+   // return a.exec();
 }
-
 
 #endif // TEST_HPP

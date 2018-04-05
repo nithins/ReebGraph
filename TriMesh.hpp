@@ -2,7 +2,7 @@
 #define TRIMESH_HPP
 
 #include "ScalarFunction.hpp"
-#include <QSet>
+#include <set>
 
 namespace contourtree {
 
@@ -10,7 +10,7 @@ class TriMesh : public ScalarFunction
 {
 public:
     struct Vertex {
-        QSet<uint32_t> adj;
+        std::set<uint32_t> adj;
     };
 
 public:
@@ -18,12 +18,12 @@ public:
 
     int getMaxDegree();
     int getVertexCount();
-    int getStar(int64_t v, QVector<int64_t> &star);
+    int getStar(int64_t v, std::vector<int64_t> &star);
     bool lessThan(int64_t v1, int64_t v2);
     unsigned char getFunctionValue(int64_t v);
 
 public:
-    void loadData(QString fileName);
+    void loadData(std::string fileName);
 
 public:
     int nv;

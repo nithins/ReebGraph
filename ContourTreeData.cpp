@@ -1,11 +1,15 @@
 #include "ContourTreeData.hpp"
-
-#include <QFile>
-#include <QTextStream>
+//#include <QTextStream>
 #include <fstream>
 #include <cassert>
-#include <QDebug>
+#include <iostream>
 #include "constants.h"
+#include <sstream>
+
+#include <algorithm> 
+#include <functional> 
+#include <cctype>
+#include <locale>
 
 namespace contourtree {
 
@@ -13,20 +17,50 @@ ContourTreeData::ContourTreeData() {
 
 }
 
-void ContourTreeData::loadBinFile(QString fileName) {
+// trim from start (in place)
+inline void ltrim(std::string &s) {
+	s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+		std::not1(std::ptr_fun<int, int>(std::isspace))));
+}
+
+// trim from end (in place)
+inline void rtrim(std::string &s) {
+	s.erase(std::find_if(s.rbegin(), s.rend(),
+		std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+}
+
+// trim from both ends (in place)
+inline std::string trim(const std::string &s) {
+	std::string sc = s;
+	ltrim(sc);
+	rtrim(sc);
+
+	return sc;
+}
+
+
+void ContourTreeData::loadBinFile(std::string fileName) {
     // read meta data
     {
-        QFile ip(fileName + ".rg.dat");
-        if(!ip.open(QFile::ReadOnly | QIODevice::Text)) {
-            qDebug() << "could not read file" << fileName + ".rg.dat";
+		std::ifstream ip(fileName + ".rg.dat");
+		if (!ip.is_open()) {
+			std::cout << "could not read file" << fileName + ".rg.dat";
         }
-        QTextStream text(&ip);
-        noNodes = text.readLine().toLongLong();
-        noArcs = text.readLine().toLongLong();
+       // QTextStream text(&ip);
+		std::string line;
+
+		std::getline(ip, line);
+		std::stringstream ss(line);
+        ss >> noNodes;
+
+		std::getline(ip, line);
+		ss = std::stringstream(line);
+		ss >> noArcs;
+
         assert(noNodes == noArcs + 1);
         ip.close();
     }
-    qDebug() << noNodes << noArcs;
+    std::cout << noNodes << noArcs;
 
     std::vector<int64_t> nodeids(noNodes);
     std::vector<unsigned char> nodefns(noNodes);
@@ -34,28 +68,35 @@ void ContourTreeData::loadBinFile(QString fileName) {
     std::vector<int64_t> arcs(noArcs * 2);
 
     // read the tree
-    QString rgFile = fileName + ".rg.bin";
-    std::ifstream ip(rgFile.toStdString(), std::ios::binary);
+    std::string rgFile = fileName + ".rg.bin";
+    std::ifstream ip(rgFile, std::ios::binary);
     ip.read((char *)nodeids.data(),nodeids.size() * sizeof(int64_t));
     ip.read((char *)nodefns.data(),nodeids.size());
     ip.read((char *)nodeTypes.data(),nodeids.size());
     ip.read((char *)arcs.data(),arcs.size() * sizeof(int64_t));
     ip.close();
 
-    qDebug() << "finished reading data";
+    std::cout << "finished reading data";
     this->loadData(nodeids,nodefns,nodeTypes,arcs);
 }
 
-void ContourTreeData::loadTxtFile(QString fileName) {
-    QFile ip(fileName);
-    if(!ip.open(QFile::ReadOnly | QIODevice::Text)) {
-        qDebug() << "could not read file" << fileName;
-    }
-    QTextStream text(&ip);
+void ContourTreeData::loadTxtFile(std::string fileName) {
+	std::ifstream ip("fileName");
+	if (!ip.is_open()) {
+		std::cout << "could not read file" << "fileName";
 
-    QStringList line = text.readLine().split(" ");
-    noNodes = QString(line[0]).toInt();
-    noArcs = QString(line[1]).toInt();
+    }
+//std::stringstream text(&ip);
+	std::string line;
+
+	std::getline(ip, line);
+
+	std::stringstream ss(line);
+
+	int noArcs = 0;
+
+	ss >> noNodes;
+	ss >> noArcs;
 
     std::vector<int64_t> nodeids(noNodes);
     std::vector<unsigned char> nodefns(noNodes);
@@ -63,15 +104,25 @@ void ContourTreeData::loadTxtFile(QString fileName) {
     std::vector<int64_t> arcs(noArcs * 2);
 
     for(size_t i = 0;i < noNodes;i ++) {
-        line = text.readLine().split(" ");
-        int64_t v = QString(line[0]).toLongLong();
-        float fn = QString(line[1]).toFloat();
+        std::getline(ip,line);
+		std::stringstream ss(line);
+
+
+        int64_t v;
+		float fn;
         char t;
-        if(line[2].trimmed() == "MINIMA") {
+		std::string type;
+
+		ss >> v >> fn >> type;
+
+		type = trim(type);
+		
+			
+        if(type == "MINIMA") {
             t = MINIMUM;
-        } else if(line[2].trimmed() == "MAXIMA") {
+        } else if(type == "MAXIMA") {
             t = MAXIMUM;
-        } else if(line[2].trimmed() == "SADDLE") {
+        } else if(type == "SADDLE") {
             t = SADDLE;
         } else {
             t = REGULAR;
@@ -81,14 +132,14 @@ void ContourTreeData::loadTxtFile(QString fileName) {
         nodeTypes[i] = t;
     }
     for(size_t i = 0;i < noArcs;i ++) {
-        line = text.readLine().split(" ");
-        int v1 = QString(line[0]).toInt();
-        int v2 = QString(line[1]).toInt();
+		std::getline(ip, line);
+        int v1 = line[0];
+        int v2 = line[1];
         arcs[i * 2 + 0] = v1;
         arcs[i * 2 + 1] = v2;
     }
     ip.close();
-    qDebug() << "finished reading data";
+    std::cout << "finished reading data";
     this->loadData(nodeids,nodefns, nodeTypes,arcs);
 }
 
@@ -111,8 +162,8 @@ void ContourTreeData::loadData(const std::vector<int64_t> &nodeids, const std::v
         arcs[i].from = nodeMap[iarcs[i * 2 + 0]];
         arcs[i].to = nodeMap[iarcs[i * 2 + 1]];
         arcs[i].id = i;
-        nodes[arcs[i].from].next << i;
-        nodes[arcs[i].to].prev << i;
+        nodes[arcs[i].from].next.push_back( i);
+        nodes[arcs[i].to].prev.push_back(i);
     }
 }
 
