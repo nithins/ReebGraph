@@ -69,7 +69,7 @@ void preProcessing(std::string rawFile, int dimx, int dimy, int dimz) {
 	std::cout << "done";
 }
  
-int main(int argc, char *argv[])
+int oldMain(int argc, char *argv[])
 {
 //   QCoreApplication a(argc, argv);
 
@@ -77,4 +77,9 @@ int main(int argc, char *argv[])
 
    exit(0);
    //return a.exec();
+}
+#include "test.hpp"
+
+int main(int argc, char *argv[]) {
+	testMain(argc, argv);
 }

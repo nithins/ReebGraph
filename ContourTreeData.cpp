@@ -11,6 +11,22 @@
 #include <cctype>
 #include <locale>
 
+
+//#ifdef WIN32
+#include <string>
+#include <windows.h>
+
+std::string workingdir()
+{
+	char buf[256];
+	GetCurrentDirectoryA(256, buf);
+	return std::string(buf) + '\\';
+}
+//#else
+//std::string workingdir() { assert(false); }
+//
+//#endif
+
 namespace contourtree {
 
 ContourTreeData::ContourTreeData() {
@@ -42,9 +58,13 @@ inline std::string trim(const std::string &s) {
 void ContourTreeData::loadBinFile(std::string fileName) {
     // read meta data
     {
+		std::cout << fileName << std::endl;
+		std::cout << workingdir() << std::endl;
+
 		std::ifstream ip(fileName + ".rg.dat");
 		if (!ip.is_open()) {
 			std::cout << "could not read file" << fileName + ".rg.dat";
+			assert(false);
         }
        // QTextStream text(&ip);
 		std::string line;

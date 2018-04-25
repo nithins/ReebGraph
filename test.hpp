@@ -234,7 +234,7 @@ void toyProcessing() {
     start = std::chrono::system_clock::now();
     grid.loadGrid(data + ".raw");
     MergeTree ct;
-    contourtree::TreeType tree = TypeJoinTree;
+    contourtree::TreeType tree = TypeContourTree;
     ct.computeTree(&grid,tree);
     end = std::chrono::system_clock::now();
     std::cout << "Time to compute contour tree: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
@@ -534,7 +534,7 @@ void toyFeatures() {
     ip.close();
 }
 
-int oldMain(int argc, char *argv[])
+int testMain(int argc, char *argv[])
 {
     //QCoreApplication a(argc, argv);
 //    testGrid();

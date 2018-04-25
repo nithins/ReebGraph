@@ -237,7 +237,8 @@ void SimplifyCT::simplify(const std::vector<uint32_t> &order, int topk, float th
         inq[order.at(i)] = true;
     }
     if(topk > 0) {
-        size_t ct = order.size() - topk;
+        int ct = order.size() - topk;
+		std::cout << order.size() << std::endl;
         for(int i = 0;i < ct;i ++) {
             uint32_t ano = order.at(i);
             if(!isCandidate(branches[ano])) {
@@ -269,11 +270,12 @@ void SimplifyCT::outputOrder(std::string fileName) {
     {
 		std::ofstream pr(fileName + ".order.dat");
 		if (!pr.is_open()) {
-			std::cout << "could not read file" << fileName + ".order.dat";
+			std::cout << "could not write file" << fileName + ".order.dat";
 
         }
 
 		pr << order.size() << "\n";
+		pr.close();
     }
     std::vector<float> wts;
     float pwt = 0;
@@ -287,12 +289,15 @@ void SimplifyCT::outputOrder(std::string fileName) {
         pwt = val;
     }
 
-    // normalize weights
-    float maxWt = wts.at(wts.size() - 1);
-    if(maxWt == 0) maxWt = 1;
-    for(int i = 0;i < wts.size();i ++) {
-        wts[i] /= maxWt;
-    }
+
+	if (wts.size() > 0) {
+		// normalize weights
+		float maxWt = wts.at(wts.size() - 1);
+		if (maxWt == 0) maxWt = 1;
+		for (int i = 0; i < wts.size(); i++) {
+			wts[i] /= maxWt;
+		}
+	}
 
     std::cout << "writing tree output";
     std::string binFile = fileName + ".order.bin";
