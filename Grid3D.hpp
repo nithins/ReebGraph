@@ -22,7 +22,7 @@ public:
     int getVertexCount();
     int getStar(int64_t v, std::vector<int64_t> &star);
     bool lessThan(int64_t v1, int64_t v2);
-    unsigned char getFunctionValue(int64_t v);
+    scalar_t getFunctionValue(int64_t v);
 
 public:
     void loadGrid(std::string fileName);
@@ -36,7 +36,7 @@ public:
     std::vector<Tet> tets;
     int starin[14][3];
     int64_t star[14];
-    std::vector<unsigned char> fnVals;
+    std::vector<scalar_t> fnVals;
 
 protected:
     inline int64_t index(int64_t x, int64_t y, int64_t z) {

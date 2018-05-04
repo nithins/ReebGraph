@@ -167,7 +167,7 @@ void MergeTree::output(std::string fileName, TreeType tree)
 
     std::cout << ("Creating required memory!");
     std::vector<int64_t> nodeids(noNodes);
-    std::vector<unsigned char> nodefns(noNodes);
+    std::vector<scalar_t> nodefns(noNodes);
     std::vector<char> nodeTypes(noNodes);
     std::vector<int64_t> arcs(noArcs * 2);
 

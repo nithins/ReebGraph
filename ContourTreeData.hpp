@@ -5,6 +5,8 @@
 #include <vector>
 #include <map>
 
+#include "ScalarFunction.hpp"
+
 namespace contourtree {
 
 struct Node {
@@ -27,7 +29,7 @@ public:
     void loadTxtFile(std::string fileName);
 
 protected:
-    void loadData(const std::vector<int64_t>& nodeids, const std::vector<unsigned char>& nodefns, const std::vector<char>& nodeTypes, const std::vector<int64_t>& iarcs);
+    void loadData(const std::vector<int64_t>& nodeids, const std::vector<scalar_t>& nodefns, const std::vector<char>& nodeTypes, const std::vector<int64_t>& iarcs);
 
 public:
     uint32_t noNodes;

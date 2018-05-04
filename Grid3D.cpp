@@ -1,8 +1,11 @@
 #include "Grid3D.hpp"
-#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <string>
+#include <algorithm>
+#include <iostream>
+
+bool endsWith(std::string s, std::string ext);
 
 namespace contourtree {
 
@@ -51,15 +54,38 @@ bool Grid3D::lessThan(int64_t v1, int64_t v2) {
     return false;
 }
 
-unsigned char Grid3D::getFunctionValue(int64_t v) {
+ scalar_t Grid3D::getFunctionValue(int64_t v) {
     return this->fnVals[v];
 }
-
+ //
+//
 void Grid3D::loadGrid(std::string fileName) {
-    std::ifstream ip(fileName, std::ios::binary);
-    this->fnVals.resize(nv);
-    ip.read((char *)fnVals.data(),nv);
-    ip.close();
+	if (endsWith(fileName, ".raw")) {
+		std::ifstream ip(fileName, std::ios::binary);
+		this->fnVals.resize(nv);
+		ip.read((char *)(void *)fnVals.data(), nv*sizeof(scalar_t));
+		ip.close();
+	}
+	else if (endsWith(fileName, ".csv")) {
+		std::ifstream ip(fileName);
+		if (!ip.is_open())
+			throw std::runtime_error("File could not be opened file=" + fileName);
+		std::string fisrtString;
+		ip >> fisrtString;
+
+		fnVals.resize(nv);
+
+		for (int i = 0; i < nv; ++i) {
+			ip >> fnVals[i];
+			if(i < 10)
+			std::cout <<fnVals[i] << std::endl;
+		}
+
+	}
+	else {
+		assert(false && "unknown FileFormat");
+	}
+
 }
 
 void Grid3D::updateStars() {

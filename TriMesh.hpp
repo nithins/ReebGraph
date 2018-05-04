@@ -20,14 +20,14 @@ public:
     int getVertexCount();
     int getStar(int64_t v, std::vector<int64_t> &star);
     bool lessThan(int64_t v1, int64_t v2);
-    unsigned char getFunctionValue(int64_t v);
+    scalar_t getFunctionValue(int64_t v);
 
 public:
     void loadData(std::string fileName);
 
 public:
     int nv;
-    std::vector<unsigned char> fnVals;
+    std::vector<scalar_t> fnVals;
     std::vector<Vertex> vertices;
     int maxStar;
 };

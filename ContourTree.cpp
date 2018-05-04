@@ -109,7 +109,7 @@ void ContourTree::output(std::string fileName) {
     nodesSplit.shrink_to_fit();
 
     std::vector<int64_t> nodeids;
-    std::vector<unsigned char> nodefns;
+    std::vector<scalar_t> nodefns;
     std::vector<char> nodeTypes;
     std::vector<int64_t> arcs;
 

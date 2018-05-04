@@ -101,6 +101,7 @@ void testSimplification2() {
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
     ctdata.loadBinFile("../data/Fish_256");
+	//ctdata.loadBinFile("../data/CTACardio");
     end = std::chrono::system_clock::now();
     std::cout << "Loading contour tree - Elapsed time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms\n";
 
@@ -224,15 +225,18 @@ void testMergeTree() {
 
 void toyProcessing() {
     // the actual raw file without the extension. the extensions will be added as and when needed.
-    std::string data = "../data/toy";
-
+    std::string data = "toy";
+	/////
+	//std::string data = "CTACardio";
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
 	Grid3D grid(128, 128, 128);
+	//Grid3D grid(512, 512, 321);
     end = std::chrono::system_clock::now();
 
     start = std::chrono::system_clock::now();
     grid.loadGrid(data + ".raw");
+	//grid.loadGrid(data + ".csv");
     MergeTree ct;
     contourtree::TreeType tree = TypeContourTree;
     ct.computeTree(&grid,tree);
@@ -312,7 +316,7 @@ void generateData(bool mini = false) {
     int dimy = 128;
     int dimz = 128;
 
-    std::vector<uint8_t> volume;
+    std::vector<scalar_t> volume;
     if(mini) {
         volume.resize(dimx * dimy * dimz, 255);
     } else {
@@ -349,21 +353,21 @@ void generateData(bool mini = false) {
                     if(mini) {
                         val = 255 - val;
                     }
-                    volume[in] = std::max(uint8_t(val),volume[in]);
+                    volume[in] = std::max(scalar_t(val),volume[in]);
                 }
             }
         }
     }
 
-
-    std::ofstream of;
-    if(mini) {
-        of.open("../data/toy-mini.raw",std::ios::binary);
-    } else {
-        of.open("../data/toy.raw",std::ios::binary);
-    }
-    of.write((char *)volume.data(),volume.size());
-    of.close();
+	std::ofstream of;
+	if (mini) {
+		of.open("../data/toy-mini.raw", std::ios::binary);
+	}
+	else {
+		of.open("toy.raw", std::ios::binary);
+	}
+	of.write((char *)volume.data(), volume.size());
+	of.close();
 }
 
 void testFeatures() {
@@ -383,6 +387,10 @@ void testFeatures() {
     int dimx = 256;
     int dimy = 257;
     int dimz = 471;
+
+	//int dimx = 512;
+	//int dimy = 512;
+	//int dimz = 321;
 
     std::cout << "reading part";
     std::vector<uint32_t> part(dimx * dimy * dimz);
@@ -414,22 +422,27 @@ void testConnectivity() {
 //    Grid3D grid(256,257,471);
 
     std::string data = "../data/Cameroon/Cameroon_256";
-    Grid3D grid(256,256,527);
-
+    //Grid3D grid(256,256,527);
+	Grid3D grid(512, 512, 321);
     // read part file
-    int dimx = 256;
-    int dimy = 256;
-    int dimz = 527;
+	//int dimx = 128;
+	//int dimy = 128;
+	//int dimz = 128;
+
+	int dimx = 512;
+	int dimy = 512;
+	int dimz = 321;
 
     std::cout << "reading part";
     std::vector<uint32_t> part(dimx * dimy * dimz);
-    std::ifstream ip((data + ".part.raw"), std::ios::binary);
+   // std::ifstream ip((data + ".part.raw"), std::ios::binary);
+	std::ifstream ip((data + ".part.csv"));
     ip.read((char *)(part.data()), part.size() * sizeof(uint32_t));
     ip.close();
 
     std::cout << "reading ct";
     ContourTreeData ctdata;
-    ctdata.loadBinFile(data);
+    ctdata.loadBinFile(data); //
 
     uint32_t noArcs = ctdata.noArcs;
     std::vector<std::set<uint32_t> > arcs(noArcs);
@@ -494,6 +507,7 @@ void testConnectivity() {
 void toyFeatures() {
     // the actual raw file without the extension. the extensions will be added as and when needed.
     std::string data = "../data/toy";
+	//std::string data = "../data/CTACardio";
     TopologicalFeatures tf;
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
