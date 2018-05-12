@@ -15,12 +15,7 @@
 
 using namespace contourtree;
 
-bool endsWith(std::string s, std::string ext) {
-	if (s.size() < ext.size())
-		return false;
-
-	return s.substr(s.size() - ext.size(), ext.size()) == ext;
-}
+bool endsWith(std::string s, std::string ext);
 
 //void preProcessing(std::string rawFile, int dimx, int dimy, int dimz) {
 

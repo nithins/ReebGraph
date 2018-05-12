@@ -1,2 +1,8 @@
 build
 CMakeLists.txt.user
+
+#Testing related files
+tests/.cache/
+tests/__pycache__/
+tests/pyrg.so
+
