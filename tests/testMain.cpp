@@ -1,16 +1,9 @@
 #include <iostream>
 #include <sstream>
 
-#include "DisjointSets.hpp"
-
+#include "../DisjointSets.hpp"
 
 using namespace contourtree;
-
-
-
-#include <pybind11/pybind11.h>
-
-namespace py=pybind11;
 
 inline void __dump_error__(const std::string & s)
 {std::cerr << s << std::endl;throw std::runtime_error(s);}
@@ -38,23 +31,18 @@ void testDisjointSets() {
     }
 
     for (int i = 0; i < numElements; i++) {
-        std::cout << ds.find(i) << "*";
-        if (i % numInSameSet == numInSameSet - 1)
-            std::cout << "\n";
+//        std::cout << ds.find(i) << "*";
+//        if (i % numInSameSet == numInSameSet - 1)
+//            std::cout << "\n";
 
         ENSURES(ds.find(i) == numInSameSet*int(i/numInSameSet))
                 << " ds.find(i)=" << ds.find(i)
                 << " int(i/numInSameSet)" << int(i/numInSameSet);
     }
-    std::cout << "\n";
+//    std::cout << "\n";
 }
 
-
-
-PYBIND11_MODULE(pyrg, m) {
-    m.doc() = "Py ReebGraph module"; // optional module docstring
-
-    py::class_ c;
-
-    m.def("testDisjointSets", &testDisjointSets, "testDisjointSets");
+int main() {
+    testDisjointSets();
 }
+

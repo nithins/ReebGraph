@@ -25,6 +25,8 @@ public:
 
 private:
     void mergeSet(const T& root1, const T& root2);
+
+    static_assert(T(-1) < 0,"Template type cannot be unsigned");
 };
 
 

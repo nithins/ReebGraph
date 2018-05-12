@@ -2,6 +2,7 @@
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 
 project (reebgraph LANGUAGES CXX)
+set (CMAKE_CXX_STANDARD 14)
 
 
 SET(ALL_SRCS
@@ -57,29 +58,9 @@ set_target_properties(pyrg PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(pyrg ${ALL_LIBS})
 
 
-if (WIN32)
-    set(PYRG_MODULE_NAME "pyrg.pyd")
-else (WIN32)
-    set(PYRG_MODULE_NAME "pyrg.so")
-endif (WIN32)
-
-
 option(PYRG_TESTS "Enable testing the PYRG module" ON)
-
-if(PYRG_TESTS)
-    add_custom_command(TARGET pyrg POST_BUILD COMMAND ${CMAKE_COMMAND} -E 
-                    copy $<TARGET_FILE:pyrg> ${CMAKE_CURRENT_SOURCE_DIR}/tests/${PYRG_MODULE_NAME})
-
-    set(PYTEST_FILES test.py)
-
-
-    add_custom_target(check COMMAND ${PYTHON_EXECUTABLE} -m pytest ${PYTEST_FILES}
-                  DEPENDS pyrg
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests ${PYBIND11_USES_TERMINAL})
-
-
-
-
+if(PYRG_TESTS)    
+    add_subdirectory(tests)
 endif(PYRG_TESTS)
 
 
