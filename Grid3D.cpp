@@ -19,6 +19,7 @@ Grid3D::Grid3D(int resx, int resy, int resz) :
     dimx(resx), dimy(resy), dimz(resz)
 {
     nv = dimx * dimy * dimz;
+    this->fnVals.resize(nv,-1); // fnVals must resize only on ctor
     this->updateStars();
 }
 
@@ -68,7 +69,6 @@ bool Grid3D::lessThan(int64_t v1, int64_t v2) {
 void Grid3D::loadGrid(std::string fileName) {
 	if (endsWith(fileName, ".raw")) {
 		std::ifstream ip(fileName, std::ios::binary);
-		this->fnVals.resize(nv);
 		ip.read((char *)(void *)fnVals.data(), nv*sizeof(scalar_t));
 		ip.close();
 	}
@@ -78,9 +78,6 @@ void Grid3D::loadGrid(std::string fileName) {
 			throw std::runtime_error("File could not be opened file=" + fileName);
 		std::string fisrtString;
 		ip >> fisrtString;
-
-		fnVals.resize(nv);
-
 		for (int i = 0; i < nv; ++i) {
 			ip >> fnVals[i];
 			if(i < 10)

@@ -28,12 +28,18 @@ public:
     scalar_t getFunctionValue(int64_t v);
 
 public:
+    scalar_t *data(){return fnVals.data();}
+    inline size_t dimX() const{return dimx;}
+    inline size_t dimY() const{return dimy;}
+    inline size_t dimZ() const{return dimz;}
+
+public:
     void loadGrid(std::string fileName);
 
 protected:
     void updateStars();
 
-public:
+private:
     int dimx, dimy, dimz;
     int nv;
     std::vector<Tet> tets;
@@ -41,7 +47,7 @@ public:
     int64_t star[14];
     std::vector<scalar_t> fnVals;
 
-protected:
+public:
     inline int64_t index(int64_t x, int64_t y, int64_t z) {
         return (x + y * dimx + z * dimx * dimy);
     }
