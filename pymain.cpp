@@ -4,7 +4,7 @@
 
 #include <pybind11/pybind11.h>
 
-using namespace contourtree;
+//using namespace contourtree;
 
 
 namespace py=pybind11;

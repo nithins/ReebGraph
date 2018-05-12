@@ -1,17 +1,19 @@
 #ifndef TEST_HPP
 #define TEST_HPP
 
-#include "DisjointSets.hpp"
+#include "../utl.h"
+
+#include "../DisjointSets.hpp"
 #include <iostream>
-#include "Grid3D.hpp"
+#include "../Grid3D.hpp"
 #include <chrono>
-#include "MergeTree.hpp"
-#include "ContourTreeData.hpp"
-#include "SimplifyCT.hpp"
-#include "Persistence.hpp"
-#include "TriMesh.hpp"
-#include "TopologicalFeatures.hpp"
-#include "HyperVolume.hpp"
+#include "../MergeTree.hpp"
+#include "../ContourTreeData.hpp"
+#include "../SimplifyCT.hpp"
+#include "../Persistence.hpp"
+#include "../TriMesh.hpp"
+#include "../TopologicalFeatures.hpp"
+#include "../HyperVolume.hpp"
 #include <fstream>
 #include <cmath>
 
@@ -21,7 +23,7 @@ using namespace contourtree;
 void testDisjointSets() {
     int numElements = 128;
     int numInSameSet = 16;	
-	DisjointSets<uint64_t> ds(numElements);
+    DisjointSets<int64_t> ds(numElements);
     int set1, set2;
 
     for (int k = 1; k < numInSameSet; k *= 2) {
@@ -36,6 +38,10 @@ void testDisjointSets() {
         std::cout << ds.find(i) << "*";
         if (i % numInSameSet == numInSameSet - 1)
             std::cout << "\n";
+
+        ENSURES(ds.find(i) == numInSameSet*int(i/numInSameSet))
+                << " ds.find(i)=" << ds.find(i)
+                << " int(i/numInSameSet)" << int(i/numInSameSet);
     }
     std::cout << "\n";
 }

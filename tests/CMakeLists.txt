@@ -9,11 +9,11 @@ cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 #    set(PYRG_MODULE_NAME "pyrg.so")
 #endif (WIN32)
 
-#add_executable(testmain testMain.cpp)
+# add_executable(testmain testMain.cpp test.hpp)
 
 
 
-pybind11_add_module(pyrgtest $<TARGET_OBJECTS:reebgraph> pytest.cpp)
+pybind11_add_module(pyrgtest $<TARGET_OBJECTS:reebgraph> pytest.cpp test.hpp)
 target_link_libraries(pyrgtest PUBLIC pybind11::module ${PYTHON_LIBRARY})
 set_target_properties(pyrgtest PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" )
 set_target_properties(pyrgtest PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" )
