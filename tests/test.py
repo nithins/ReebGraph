@@ -1,9 +1,7 @@
-
-
-def test_imports():
-    import pyrg
+import pyrg as rg
+import pyrgtest as rgt
     
     
 def test_disjointSets():
-    import pyrg     
-    pyrg.testDisjointSets()
+
+    rgt.testDisjointSets()

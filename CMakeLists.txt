@@ -38,6 +38,8 @@ Grid3D.hpp
 Grid3D.cpp
 
 DisjointSets.hpp
+constants.h
+utl.h
 
 ContourTreeData.hpp
 ContourTreeData.cpp
@@ -45,16 +47,15 @@ ContourTreeData.cpp
 
 
 
-#add_library(reebgraph SHARED ${ALL_SRCS})
+add_library(reebgraph OBJECT ${ALL_SRCS})
+set_target_properties(reebgraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/pybind11
         ${CMAKE_CURRENT_BINARY_DIR}/pybind11)        
     
-pybind11_add_module(pyrg ${ALL_SRCS} pymain.cpp)
+pybind11_add_module(pyrg $<TARGET_OBJECTS:reebgraph> pymain.cpp)
 target_link_libraries(pyrg PUBLIC pybind11::module ${PYTHON_LIBRARY})
 set_target_properties(pyrg PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" )
-target_compile_features(pyrg PUBLIC cxx_std_14)
-set_target_properties(pyrg PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(pyrg ${ALL_LIBS})
 
 
