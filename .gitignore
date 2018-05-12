@@ -6,3 +6,7 @@ tests/.cache/
 tests/__pycache__/
 tests/pyrg.so
 
+#example binary files
+examples/*.so
+examples/*.pyc
+examples/*.pyd
