@@ -3,20 +3,133 @@
 
 
 #include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
 #include "utl.h"
 #include "Grid3D.hpp"
 #include "MergeTree.hpp"
+#include "ContourTreeData.hpp"
+#include "ContourTreeData.hpp"
+#include "SimplifyCT.hpp"
+#include "Persistence.hpp"
 
 using namespace contourtree;
 
 
 namespace py=pybind11;
 
+py::tuple simplifyContourTree(ContourTree &ct) {
+
+    std::vector<int64_t> nodeids;
+    std::vector<scalar_t> nodefns;
+    std::vector<char> nodeTypes;
+    std::vector<int64_t> arcs;
+    std::vector<uint32_t> arcMap;
+
+    ct.output(nodeids,nodefns,nodeTypes,arcs,arcMap);
+
+    std::cout << SVAR(nodeids.size()) << std::endl;
+    std::cout << SVAR(nodefns.size()) << std::endl;
+    std::cout << SVAR(nodeTypes.size()) << std::endl;
+    std::cout << SVAR(arcs.size()) << std::endl;
+    std::cout << SVAR(arcMap.size()) << std::endl;
+
+
+    ContourTreeData ctdata;
+    ctdata.loadData(nodeids,nodefns,nodeTypes,arcs);
+
+    SimplifyCT sim;
+    sim.setInput(&ctdata);
+
+    Persistence simfn(ctdata);
+    sim.simplify(&simfn);
+
+    std::vector<uint32_t> order;
+    std::vector<float>   wts;
+
+    sim.outputOrder(order,wts);
+
+    return py::make_tuple(py::array(order.size(),order.data()),
+                          py::array(wts.size(),wts.data()));
+
+
+
+}
+
+
+struct py_icoord {
+    int x;
+    int y;
+    int z;
+};
+
+struct py_node {
+    int64_t    id;
+    py_icoord  crd;
+    scalar_t   fn;
+    char       type;
+};
+
+
+py::tuple computeCT_Grid3D(py::array_t<scalar_t> grid){
+
+    size_t X = grid.shape(2);
+    size_t Y = grid.shape(1);
+    size_t Z = grid.shape(0);
+
+    Grid3D g(X,Y,Z);
+    std::copy(grid.data(),grid.data()+X*Y*Z,g.data());
+
+    MergeTree mt;
+    mt.computeTree(&g,TypeContourTree);
+
+    std::vector<int64_t> nodeids;
+    std::vector<scalar_t> nodefns;
+    std::vector<char> nodeTypes;
+    std::vector<int64_t> arcs;
+    std::vector<uint32_t> arcMap;
+
+    mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMap);
+
+    std::vector<py_node> nodes(nodeids.size());
+
+    std::map<int64_t,int64_t> idToNodeNum;
+
+    for(int i = 0; i < nodes.size(); ++i ) {
+        int id = nodeids[i];
+        nodes[i].id = id;
+        nodes[i].crd.x = id%X;
+        nodes[i].crd.y = (id/X)%Y;
+        nodes[i].crd.z = (id/(X*Y))%Z;
+        nodes[i].fn = nodefns[i];
+        nodes[i].type = nodeTypes[i];
+        idToNodeNum[id] = i;
+    }
+
+    for(auto &a: arcs) {
+        a = idToNodeNum[a];
+    }
+
+    std::cout << SVAR(arcMap.size()) << std::endl;
+
+    auto nodes_   = py::array(nodes.size(),nodes.data());
+    auto arcs_    = py::array(arcs.size(),arcs.data());
+    auto arcMap_  = py::array(arcMap.size(),arcMap.data());
+    arcs_.resize({arcs.size()/2,size_t(2)},true);
+    arcMap_.resize({X,Y,Z},true);
+
+
+    return py::make_tuple(nodes_,arcs_,arcMap_);
+}
+
 
 PYBIND11_MODULE(pyrg, m) {
 
     m.doc() = "Py ReebGraph module"; // optional module docstring
+
+
+    PYBIND11_NUMPY_DTYPE(py_icoord,x,y,z);
+    PYBIND11_NUMPY_DTYPE(py_node,id,crd,fn,type);
 
 
 
@@ -38,12 +151,23 @@ PYBIND11_MODULE(pyrg, m) {
     ;
 
 
+
+
     py::class_<MergeTree>(m, "MergeTree", py::buffer_protocol())
             .def(py::init<>())
-            .def("computeContourTree",[](MergeTree& ct,Grid3D& grid)->void{ct.computeTree(&grid,TypeContourTree);})
+            .def("computeContourTree",[](MergeTree& mt,Grid3D& grid)->void
+            {std::cout << SVAR(&mt) << std::endl;mt.computeTree(&grid,TypeContourTree);})
+
             .def("computeJoinTree",[](MergeTree& ct,Grid3D& grid)->void{ct.computeTree(&grid,TypeJoinTree);})
-            .def("computeSplitTree",[](MergeTree& ct,Grid3D& grid)->void{ct.computeTree(&grid,TypeSplitTree);})
+            .def("computeSplitTree",[](MergeTree& mt,Grid3D& grid)->void{
+                std::cout << SVAR(&mt) << std::endl;
+                mt.computeTree(&grid,TypeSplitTree);})
+            .def("genPersistenceHierarchy",[](MergeTree &mt){
+                std::cout << SVAR(&mt) << std::endl;
+                return simplifyContourTree(mt.ctree);})
     ;
+
+    m.def("computeCT_Grid3D",&computeCT_Grid3D,"Compute the contour tree on a structured3D grid");
 
 
 }

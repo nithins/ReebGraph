@@ -4,7 +4,7 @@
 #include <vector>
 #include <stdint.h>
 
-typedef short scalar_t;
+typedef float scalar_t;
 
 namespace contourtree {
 

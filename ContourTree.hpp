@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "ScalarFunction.hpp"
 
 namespace contourtree {
 
@@ -24,6 +25,14 @@ public:
     void computeCT();
     void output(std::string fileName);
 
+    void output(
+        std::vector<int64_t>  &nodeids,
+        std::vector<scalar_t> &nodefns,
+        std::vector<char>     &nodeTypes,
+        std::vector<int64_t>  &arcs,
+        std::vector<uint32_t> &arcMap
+     );
+
 private:
     void remove(int64_t xi, std::vector<Node>& nodeArray);
     void removeAndAdd(std::vector<int64_t> &arr, int64_t rem, int64_t add);
@@ -35,7 +44,6 @@ public:
     std::vector<Node> nodesJoin;
     std::vector<Node> nodesSplit;
     std::vector<Node> ctNodes;
-    std::vector<uint32_t> arcMap;
 
     int64_t nv;
 };

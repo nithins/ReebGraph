@@ -93,19 +93,15 @@ void ContourTree::computeCT() {
     }
 }
 
-void ContourTree::output(std::string fileName) {
-    std::cout << "removing deg-2 nodes and computing segmentation";
 
-    // saving some memory
-    nodesJoin.clear();
-    nodesJoin.shrink_to_fit();
-    nodesSplit.clear();
-    nodesSplit.shrink_to_fit();
-
-    std::vector<int64_t> nodeids;
-    std::vector<scalar_t> nodefns;
-    std::vector<char> nodeTypes;
-    std::vector<int64_t> arcs;
+void ContourTree::output(
+    std::vector<int64_t>  &nodeids,
+    std::vector<scalar_t> &nodefns,
+    std::vector<char>     &nodeTypes,
+    std::vector<int64_t>  &arcs,
+    std::vector<uint32_t> &arcMap
+        )
+{
 
     arcMap.resize(nv, -1);
 
@@ -140,12 +136,25 @@ void ContourTree::output(std::string fileName) {
             arcNo ++;
         }
     }
+}
 
-//    std::cout << "sanity testing segementation";
-//    for(uint32_t ano: arcMap) {
-//        assert(ano != (uint32_t)(-1));
-//        assert(ano < arcNo);
-//    }
+
+void ContourTree::output(std::string fileName) {
+    std::cout << "removing deg-2 nodes and computing segmentation";
+
+    // saving some memory
+    nodesJoin.clear();
+    nodesJoin.shrink_to_fit();
+    nodesSplit.clear();
+    nodesSplit.shrink_to_fit();
+
+    std::vector<int64_t> nodeids;
+    std::vector<scalar_t> nodefns;
+    std::vector<char> nodeTypes;
+    std::vector<int64_t> arcs;
+    std::vector<uint32_t> arcMap;
+
+    ContourTree::output(nodeids,nodefns,nodeTypes,arcs,arcMap);
 
     // write meta data
     std::cout << "Writing meta data";
@@ -155,9 +164,8 @@ void ContourTree::output(std::string fileName) {
 			std::cout << "could not read file" << fileName + ".rg.dat";
 
 		}
-		//QTextStream text(&pr);
         pr << nodeids.size() << "\n";
-        pr << arcNo << "\n";
+        pr << arcs.size()/2 << "\n";
         pr.close();
     }
 

@@ -259,19 +259,9 @@ void SimplifyCT::simplify(const std::vector<uint32_t> &order, int topk, float th
     }
 }
 
-void SimplifyCT::outputOrder(std::string fileName) {
-    std::cout << "Writing meta data";
-    {
-		std::ofstream pr(fileName + ".order.dat");
-		if (!pr.is_open()) {
-			std::cout << "could not write file" << fileName + ".order.dat";
-
-        }
-
-		pr << order.size() << "\n";
-		pr.close();
-    }
-    std::vector<float> wts;
+void SimplifyCT::outputOrder(std::vector<uint32_t> &order,std::vector<float> &wts)
+{
+    order = this->order;
     float pwt = 0;
     for(size_t i = 0;i < order.size();i ++) {
         uint32_t ano = order.at(i);
@@ -284,14 +274,32 @@ void SimplifyCT::outputOrder(std::string fileName) {
     }
 
 
-	if (wts.size() > 0) {
-		// normalize weights
-		float maxWt = wts.at(wts.size() - 1);
-		if (maxWt == 0) maxWt = 1;
-		for (int i = 0; i < wts.size(); i++) {
-			wts[i] /= maxWt;
-		}
-	}
+    if (wts.size() > 0) {
+        // normalize weights
+        float maxWt = wts.at(wts.size() - 1);
+        if (maxWt == 0) maxWt = 1;
+        for (int i = 0; i < wts.size(); i++) {
+            wts[i] /= maxWt;
+        }
+    }
+
+}
+
+void SimplifyCT::outputOrder(std::string fileName) {
+    std::cout << "Writing meta data";
+    {
+		std::ofstream pr(fileName + ".order.dat");
+		if (!pr.is_open()) {
+			std::cout << "could not write file" << fileName + ".order.dat";
+
+        }
+
+		pr << order.size() << "\n";
+		pr.close();
+    }
+
+    std::vector<float> wts;
+    outputOrder(order,wts);
 
     std::cout << "writing tree output";
     std::string binFile = fileName + ".order.bin";

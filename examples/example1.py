@@ -31,14 +31,28 @@ def make_function():
     arr  += make_gaussian(mu=(0.5,-0.5,0.5))
     return arr
 
+
+
     
 
 if __name__=="__main__":
-    make_function()
+    #make_function()
     
-    g  = rg.Grid3D((30,30,30))
-    a  = np.array(g, copy = False)    
-    a[:] = make_function()
+    #g  = rg.Grid3D((30,30,30))
+    #a  = np.array(g, copy = False)    
+    #a[:] = make_function()
     
-    mt =  rg.MergeTree()
-    mt.computeContourTree(g)
+    #mt =  rg.MergeTree()
+    #mt.computeContourTree(g)
+    #s,w = mt.genPersistenceHierarchy()
+    
+    #print s
+    #print w
+    
+    nodes,arcs,amap =  rg.computeCT_Grid3D(make_function())    
+    
+    print
+    print nodes.dtype
+    print nodes
+    print arcs
+    print amap   

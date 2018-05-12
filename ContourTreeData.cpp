@@ -159,7 +159,17 @@ void ContourTreeData::loadTxtFile(std::string fileName) {
     this->loadData(nodeids,nodefns, nodeTypes,arcs);
 }
 
-void ContourTreeData::loadData(const std::vector<int64_t> &nodeids, const std::vector<scalar_t> &nodefns, const std::vector<char> &nodeTypes, const std::vector<int64_t> &iarcs) {
+void ContourTreeData::loadData(const std::vector<int64_t> &nodeids,
+                               const std::vector<scalar_t> &nodefns,
+                               const std::vector<char> &nodeTypes,
+                               const std::vector<int64_t> &iarcs) {
+
+    ENSURES(nodeids.size() == nodefns.size() && nodeTypes.size() == nodefns.size()) ;
+    ENSURES(iarcs.size() %2 == 0) ;
+
+    noNodes = nodeids.size();
+    noArcs  = iarcs.size()/2;
+
     nodes.resize(noNodes);
     nodeVerts.resize(noNodes);
     fnVals.resize(noNodes);
