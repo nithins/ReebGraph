@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 #    set(PYRG_MODULE_NAME "pyrg.so")
 #endif (WIN32)
 
-# add_executable(testmain testMain.cpp test.hpp)
+add_executable(testmain $<TARGET_OBJECTS:reebgraph> testMain.cpp test.hpp)
 
 
 

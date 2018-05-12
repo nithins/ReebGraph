@@ -229,11 +229,10 @@ void testMergeTree() {
     std::cout << "done!";
 }
 
-void toyProcessing() {
-    // the actual raw file without the extension. the extensions will be added as and when needed.
-    std::string data = "toy";
-	/////
-	//std::string data = "CTACardio";
+void toyProcessing(std::string data) {
+    ENSURES(utl::endswith(data,".raw"))<<SVAR(data);
+    data = data.substr(0,data.size()-4);
+
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
 	Grid3D grid(128, 128, 128);
@@ -242,7 +241,6 @@ void toyProcessing() {
 
     start = std::chrono::system_clock::now();
     grid.loadGrid(data + ".raw");
-	//grid.loadGrid(data + ".csv");
     MergeTree ct;
     contourtree::TreeType tree = TypeContourTree;
     ct.computeTree(&grid,tree);
@@ -317,7 +315,8 @@ void insert(std::vector<int> &cx, std::vector<int> &cy, std::vector<int> &cz, st
     rad.push_back(r);
 }
 
-void generateData(bool mini = false) {
+void generateData(std::string filename, bool mini = false) {
+    ENSURES(utl::endswith(filename,".raw"))<<SVAR(filename);
     int dimx = 128;
     int dimy = 128;
     int dimz = 128;
@@ -365,13 +364,14 @@ void generateData(bool mini = false) {
         }
     }
 
-	std::ofstream of;
-	if (mini) {
-		of.open("../data/toy-mini.raw", std::ios::binary);
-	}
-	else {
-		of.open("toy.raw", std::ios::binary);
-	}
+    std::ofstream of(filename,std::ios::binary);
+//	if (mini) {
+//		of.open("../data/toy-mini.raw", std::ios::binary);
+//	}
+//	else {
+//		of.open("toy.raw", std::ios::binary);
+//	}
+
 	of.write((char *)volume.data(), volume.size());
 	of.close();
 }
@@ -510,10 +510,14 @@ void testConnectivity() {
     }
     std::cout << "all arcs have a single component:" << single;
 }
-void toyFeatures() {
+void toyFeatures(std::string data) {
+
+    ENSURES(utl::endswith(data,".raw"))<<SVAR(data);
+    data = data.substr(0,data.size()-4);
+
     // the actual raw file without the extension. the extensions will be added as and when needed.
-    std::string data = "../data/toy";
-	//std::string data = "../data/CTACardio";
+
+
     TopologicalFeatures tf;
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
@@ -565,9 +569,9 @@ int testMain(int argc, char *argv[])
 //    testApi();
 //    testFeatures();
 //    testConnectivity();
-    generateData();
-    toyProcessing();
-    toyFeatures();
+    generateData("toy.raw");
+    toyProcessing("toy.raw");
+    toyFeatures("toy.raw");
 
     exit(0);
    // return a.exec();

@@ -13,17 +13,17 @@
 #include <string>
 
 
-#ifdef WIN32
-#include <windows.h>
-std::string workingdir()
-{
-	char buf[256];
-	GetCurrentDirectoryA(256, buf);
-	return std::string(buf) + '\\';
-}
-#else
-std::string workingdir() { assert(false); }
-#endif
+//#ifdef WIN32
+//#include <windows.h>
+//std::string workingdir()
+//{
+//	char buf[256];
+//	GetCurrentDirectoryA(256, buf);
+//	return std::string(buf) + '\\';
+//}
+//#else
+//std::string workingdir() { assert(false); }
+//#endif
 
 namespace contourtree {
 
@@ -57,7 +57,7 @@ void ContourTreeData::loadBinFile(std::string fileName) {
     // read meta data
     {
 		std::cout << fileName << std::endl;
-		std::cout << workingdir() << std::endl;
+//		std::cout << workingdir() << std::endl;
 
 		std::ifstream ip(fileName + ".rg.dat");
 		if (!ip.is_open()) {
