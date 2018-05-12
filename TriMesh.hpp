@@ -1,8 +1,12 @@
 #ifndef TRIMESH_HPP
 #define TRIMESH_HPP
 
-#include "ScalarFunction.hpp"
 #include <set>
+#include <string>
+
+#include "ScalarFunction.hpp"
+
+
 
 namespace contourtree {
 

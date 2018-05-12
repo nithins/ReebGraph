@@ -1,10 +1,13 @@
 #ifndef GRID3D_H
 #define GRID3D_H
 
-#include "ScalarFunction.hpp"
 #include <set>
 #include <stdint.h>
 #include <vector>
+#include <string>
+
+
+#include "ScalarFunction.hpp"
 
 namespace contourtree {
 

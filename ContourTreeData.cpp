@@ -10,22 +10,20 @@
 #include <functional> 
 #include <cctype>
 #include <locale>
-
-
-//#ifdef WIN32
 #include <string>
-#include <windows.h>
 
+
+#ifdef WIN32
+#include <windows.h>
 std::string workingdir()
 {
 	char buf[256];
 	GetCurrentDirectoryA(256, buf);
 	return std::string(buf) + '\\';
 }
-//#else
-//std::string workingdir() { assert(false); }
-//
-//#endif
+#else
+std::string workingdir() { assert(false); }
+#endif
 
 namespace contourtree {
 
