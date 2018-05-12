@@ -1,10 +1,10 @@
 #include "TopologicalFeatures.hpp"
 #include <fstream>
-#include <cassert>
 #include "constants.h"
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include "utl.h"
 
 namespace contourtree {
 
@@ -56,10 +56,7 @@ void TopologicalFeatures::addFeature(SimplifyCT &sim, uint32_t bno, std::vector<
     while(queue.size() > 0) {
         size_t b = queue.front();
         queue.pop_front();
-        if(b != bno && featureSet.count(b)!=0) {
-            // this cannot happen
-            assert(false);
-        }
+        ENSURES(!(b != bno && featureSet.count(b)!=0));
         featureSet.insert(b);
         Branch br = sim.branches.at(b);
         f.arcs.insert(f.arcs.end(),br.arcs.data(), br.arcs.data()+br.arcs.size());
@@ -190,10 +187,7 @@ std::vector<Feature> TopologicalFeatures::getArcFeatures(int topk, float th) {
         while(queue.size() > 0) {
             size_t b = queue.front();
             queue.pop_front();
-            if(b != bno && featureSet.count(b) !=0) {
-                // this cannot happen
-                assert(false);
-            }
+            ENSURES(!(b != bno && featureSet.count(b) !=0));
             Branch br = sim.branches.at(b);
             f.arcs.insert(f.arcs.end(),br.arcs.data(), br.arcs.data()+br.arcs.size());
             for(int i = 0;i < br.children.size();i ++) {

@@ -131,10 +131,10 @@ void testSimplification2() {
     for(int i = 0;i < order.size();i ++) {
         Branch  b1 = sim.branches.at(order[i]);
         Branch b2 = simo.branches.at(order[i]);
-        assert(b1.from != b2.from || b1.to != b2.to);
-        assert(b1.parent == b2.parent);
-        assert(b1.children == b2.children);
-        assert(b1.arcs == b2.arcs);
+        ENSURES(b1.from != b2.from || b1.to != b2.to);
+        ENSURES(b1.parent == b2.parent);
+        ENSURES(b1.children == b2.children);
+        ENSURES(b1.arcs == b2.arcs);
     }
     std::cout << "done!";
 }
@@ -296,9 +296,9 @@ void testApi() {
     std::cout << "Time to get features: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms";
     std::cout << "no. of features:" << features.size() << "\n";
 
-    assert(features1.size() == features.size());
+    ENSURES(features1.size() == features.size());
     for(int i = 0;i < features.size();i ++) {
-        assert(features[i].to == features1[i].to);
+        ENSURES(features[i].to == features1[i].to);
     }
 
 //    start = std::chrono::system_clock::now();

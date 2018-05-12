@@ -2,9 +2,9 @@
 #include "MergeTree.hpp"
 #include <vector>
 #include <deque>
-#include <cassert>
 #include <iostream>
 #include <fstream>
+#include "utl.h"
 
 namespace contourtree {
 
@@ -58,38 +58,32 @@ void ContourTree::computeCT() {
         Node &jn = nodesJoin[xi];
         Node &sn = nodesSplit[xi];
         if(sn.next.size() == 0 && sn.prev.size() == 0) {
-            assert((jn.next.size() == 0 && jn.prev.size() == 0));
+            ENSURES((jn.next.size() == 0 && jn.prev.size() == 0));
             continue;
         }
 
         if(sn.next.size() == 0) {
-            if(sn.prev.size() > 1) {
-                std::cout << "Can this happen too???";
-                assert(false);
-            }
+            ENSURES(!(sn.prev.size() > 1)) << "Can this happen too???";
             int xj = sn.prev[0];
             remove(xi, nodesJoin);
             remove(xi, nodesSplit);
 
             int fr = xj;
             int to = xi;
-            assert(fr < nv && to < nv);
+            ENSURES(fr < nv && to < nv);
             addArc(fr, to);
             if(nodesSplit[xj].next.size() + nodesJoin[xj].prev.size() == 1) {
                 q.push_back(xj);
             }
         } else {
-            if(jn.next.size() > 1) {
-                std::cout << "Can this happen too???";
-                assert(false);
-            }
+            ENSURES(!(jn.next.size() > 1)) << "Can this happen too???";
             int xj = jn.next[0];
             remove(xi, nodesJoin);
             remove(xi, nodesSplit);
 
             int fr = xi;
             int to = xj;
-            assert(fr < nv && to < nv);
+            ENSURES(fr < nv && to < nv);
             addArc(fr, to);
 
             if(nodesSplit[xj].next.size() + nodesJoin[xj].prev.size() == 1) {
@@ -203,7 +197,7 @@ void ContourTree::remove(int64_t xi, std::vector<ContourTree::Node> &nodeArray) 
         Node &pn = nodeArray[p];
         remove(pn.next, xi);
     } else {
-        assert(false);
+        ENSURES(false);
     }
 }
 
@@ -214,7 +208,7 @@ void ContourTree::removeAndAdd(std::vector<int64_t> &arr, int64_t rem, int64_t a
             return;
         }
     }
-    assert(false);
+    ENSURES(false);
 }
 
 void ContourTree::remove(std::vector<int64_t> &arr, int64_t xi) {
@@ -227,7 +221,7 @@ void ContourTree::remove(std::vector<int64_t> &arr, int64_t xi) {
             return;
         }
     }
-    assert(false);
+    ENSURES(false);
 }
 
 void ContourTree::addArc(int64_t from, int64_t to) {

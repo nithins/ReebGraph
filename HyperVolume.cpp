@@ -1,7 +1,6 @@
 #include "HyperVolume.hpp"
 #include <fstream>
 #include <iostream>
-#include <cassert>
 
 namespace contourtree {
 

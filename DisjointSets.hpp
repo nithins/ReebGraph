@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <vector>
-#include <cassert>
 
 namespace contourtree {
 

@@ -1,7 +1,6 @@
 #include "ContourTreeData.hpp"
 //#include <QTextStream>
 #include <fstream>
-#include <cassert>
 #include <iostream>
 #include "constants.h"
 #include <sstream>
@@ -11,6 +10,8 @@
 #include <cctype>
 #include <locale>
 #include <string>
+
+#include "utl.h"
 
 
 //#ifdef WIN32
@@ -60,10 +61,7 @@ void ContourTreeData::loadBinFile(std::string fileName) {
 //		std::cout << workingdir() << std::endl;
 
 		std::ifstream ip(fileName + ".rg.dat");
-		if (!ip.is_open()) {
-			std::cout << "could not read file" << fileName + ".rg.dat";
-			assert(false);
-        }
+        ENSURES(ip.is_open()) << SVAR(fileName);
        // QTextStream text(&ip);
 		std::string line;
 
@@ -75,7 +73,7 @@ void ContourTreeData::loadBinFile(std::string fileName) {
 		ss = std::stringstream(line);
 		ss >> noArcs;
 
-        assert(noNodes == noArcs + 1);
+        ENSURES(noNodes == noArcs + 1) << SVAR(noNodes) << SVAR(noArcs);
         ip.close();
     }
     std::cout << noNodes << noArcs;

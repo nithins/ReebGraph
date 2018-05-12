@@ -1,9 +1,10 @@
 #include "Grid3D.hpp"
-#include <cassert>
 #include <fstream>
 #include <string>
 #include <algorithm>
 #include <iostream>
+
+#include "utl.h"
 
 bool endsWith(std::string s, std::string ext) {
     if (s.size() < ext.size())
@@ -88,7 +89,7 @@ void Grid3D::loadGrid(std::string fileName) {
 
 	}
 	else {
-		assert(false && "unknown FileFormat");
+        ENSURES(false && "unknown FileFormat")<<SVAR(fileName);
 	}
 
 }
@@ -147,7 +148,7 @@ void Grid3D::updateStars() {
             }
         }
     }
-    assert(unique.size() == 14);
+    ENSURES(unique.size() == 14);
 
     int sct = 0;
     for(int64_t adj: unique) {

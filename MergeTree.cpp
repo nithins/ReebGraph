@@ -5,6 +5,8 @@
 #include <fstream>
 #include <algorithm>
 
+#include "utl.h"
+
 #define WIN32
 
 #if !defined (WIN32)
@@ -43,8 +45,7 @@ void MergeTree::computeTree(ScalarFunction* data, TreeType type) {
         break;
 
     default:
-        std::cout << "Invalid tree type";
-        assert(false);
+        ENSURES(false)<<"Invalid tree type";
     }
 
     en = std::chrono::system_clock::now();
@@ -232,7 +233,7 @@ void MergeTree::output(std::string fileName, TreeType tree)
             arcs[arcNo * 2 + 1] = to;
             arcMap[to] = arcMap[from] = arcNo ++;
         }
-        assert(arcNo == noArcs);
+        ENSURES(arcNo == noArcs);
     } else {
         uint32_t arcNo = 0;
         for(int64_t i = 0;i < noVertices;i ++) {
@@ -264,7 +265,7 @@ void MergeTree::output(std::string fileName, TreeType tree)
             arcs[arcNo * 2 + 1] = to;
             arcMap[to] = arcMap[from] = arcNo ++;
         }
-        assert(arcNo == noArcs);
+        ENSURES(arcNo == noArcs);
     }
 
     std::cout << "writing tree output";

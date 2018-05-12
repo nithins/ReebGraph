@@ -1,6 +1,6 @@
 #include "SimplifyCT.hpp"
+#include "utl.h"
 
-#include <cassert>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -180,7 +180,7 @@ void SimplifyCT::mergeVertex(uint32_t v) {
     for(int i = 0;i < branches[rem].children.size();i ++) {
         int ch = branches[rem].children.at(i);
         branches[a].children.push_back(ch);
-        assert(branches[ch].parent == rem);
+        ENSURES(branches[ch].parent == rem);
         branches[ch].parent = a;
     }
 	for( const auto & arc: branches[rem].arcs)
@@ -220,7 +220,7 @@ void SimplifyCT::simplify(contourtree::SimFunction *simFn) {
     int root = 0;
     for(int i = 0;i < removed.size();i ++) {
         if(!removed[i]) {
-            assert(root == 0);
+            ENSURES(root == 0);
             order.push_back(i);
             root ++;
         }
@@ -241,20 +241,14 @@ void SimplifyCT::simplify(const std::vector<uint32_t> &order, int topk, float th
 		std::cout << order.size() << std::endl;
         for(int i = 0;i < ct;i ++) {
             uint32_t ano = order.at(i);
-            if(!isCandidate(branches[ano])) {
-                std::cout << "failing candidate test";
-                assert(false);
-            }
+            ENSURES(isCandidate(branches[ano])) << "failing candidate test";
             inq[ano] = false;
             removeArc(ano);
         }
     } else if(th != 0) {
         for(int i = 0;i < order.size() - 1;i ++) {
             uint32_t ano = order.at(i);
-            if(!isCandidate(branches[ano])) {
-                std::cout << "failing candidate test";
-                assert(false);
-            }
+            ENSURES(isCandidate(branches[ano])) << "failing candidate test";
             float fn = wts.at(i);
             if(fn > th) {
                 break;
@@ -284,7 +278,7 @@ void SimplifyCT::outputOrder(std::string fileName) {
         float val = this->simFn->getBranchWeight(ano);
         wts.push_back(val);
         if(i > 0) {
-            assert(pwt <= val);
+            ENSURES(pwt <= val);
         }
         pwt = val;
     }

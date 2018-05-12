@@ -175,6 +175,7 @@ template <typename T> struct TypeToName {
 #include <tuple>
 #include <iostream>
 #include <vector>
+#include <sstream>
 namespace std {
 	namespace detail {
 
