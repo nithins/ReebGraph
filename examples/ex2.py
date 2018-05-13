@@ -5,6 +5,7 @@ import vtk
 from PyQt4 import QtCore, QtGui
 from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import numpy as np
+import pyrg
 
 def create_dataset():
     """
@@ -51,11 +52,11 @@ def create_dataset():
 
 class VolumeRenderPipeine:
     """
-    Given an input numpy volume this will volume render to given vtkWidget
+    Given an input numpy volume this will volume render to given vtkRenderWindow
     """ 
-    def __init__(self, arr, vtkWidget):
-        self.arr       = arr # input volume
-        self.vtkWidget = vtkWidget #output render widget
+    def __init__(self, arr, renderWindow):
+        self.arr          = arr          # input volume
+        self.renderWindow = renderWindow #output render window
         
         
         from vtk.util import numpy_support as nps
@@ -118,16 +119,52 @@ class VolumeRenderPipeine:
         volume.SetProperty(volumeProperty)
         
         # add a renderer to the widget
-        self.vtkWidget.ren = vtk.vtkRenderer()
-        self.vtkWidget.GetRenderWindow().AddRenderer(self.vtkWidget.ren)
+        self.ren = vtk.vtkRenderer()
+        self.renderWindow.AddRenderer(self.ren)
         
         # add a volume and ResetCamera
-        self.vtkWidget.ren.AddVolume(volume) 
-        self.vtkWidget.ren.ResetCamera()
+        self.ren.AddVolume(volume) 
+        self.ren.ResetCamera()
         
         #prepare interactor
-        self.vtkWidget.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
-        self.vtkWidget.iren.Initialize()
+        self.iren = self.renderWindow.GetInteractor()
+        self.iren.Initialize()
+
+
+class ReebgraphRenderPipeline:
+    """
+    Given an input numpy volume this will volume render to given vtkRenderWindow
+    """ 
+    def __init__(self, rg, renderWindow):
+        
+        self.rg           = rg            # input reeb graph
+        self.renderWindow = renderWindow  # output render window
+        
+        # Create source
+        source = vtk.vtkSphereSource()
+        source.SetCenter(0, 0, 0)
+        source.SetRadius(5.0)
+ 
+        # Create a mapper
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(source.GetOutputPort())
+ 
+        # Create an actor
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+         
+        
+        # add a renderer to the widget
+        self.ren = vtk.vtkRenderer()
+        self.renderWindow.AddRenderer(self.ren)
+        
+        # add a actors and ResetCamera
+        self.ren.AddActor(actor) 
+        self.ren.ResetCamera()
+        
+        #prepare interactor
+        self.iren = self.renderWindow.GetInteractor()
+        self.iren.Initialize()
         
 
  
@@ -135,7 +172,14 @@ class MainWindow(QtGui.QMainWindow):
  
     def __init__(self, parent = None):
         QtGui.QMainWindow.__init__(self, parent)
- 
+        
+        # Create Dataset
+        self.dataset = create_dataset();   
+        
+        # Compute Reeb graph
+        self.rg = pyrg.computeCT_Grid3D(self.dataset)        
+        
+        # Create UI 
         self.frame = QtGui.QFrame()
  
         self.hl = QtGui.QHBoxLayout()
@@ -147,15 +191,13 @@ class MainWindow(QtGui.QMainWindow):
         self.frame.setLayout(self.hl)
         self.setCentralWidget(self.frame)
  
-        self.show()
-
-          
-        # Create Dataset
-        self.dataset = create_dataset();
+        self.show()          
         
         # Create Volume Render pipeline
-        self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr) 
+        self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow()) 
  
+        # Create Reebgraph Render pipeline
+        self.reebgraphRenderPipeline = ReebgraphRenderPipeline(self.dataset,self.vtkWidget_rg.GetRenderWindow()) 
         
         
                 
