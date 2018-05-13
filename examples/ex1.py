@@ -49,10 +49,12 @@ if __name__=="__main__":
     #print s
     #print w
     
-    nodes,arcs,amap =  rg.computeCT_Grid3D(make_function())    
+    nodes,arcs,amap =  rg.computeCT_Grid3D(make_function())
+    aseq,awts  = rg.simplifyCT_Pers(nodes,arcs)
+
     
     print
-    print nodes.dtype
     print nodes
-    print arcs
-    print amap   
+    print arcs    
+    print aseq
+    print awts

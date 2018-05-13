@@ -72,7 +72,7 @@ struct py_node {
 };
 
 
-py::tuple computeCT_Grid3D(py::array_t<scalar_t> grid){
+py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
 
     size_t X = grid.shape(2);
     size_t Y = grid.shape(1);
@@ -122,6 +122,43 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> grid){
 	return py::make_tuple(nodes_,arcs_,arcMap);
 }
 
+py::tuple simplifyCT_Pers(py::array_t<py_node> &nodes_, py::array_t<int64_t> &arcs_){
+
+	std::vector<int64_t> nodeids;
+	std::vector<scalar_t> nodefns;
+	std::vector<char> nodeTypes;
+	std::vector<int64_t> arcs;
+
+	for(int i = 0; i < nodes_.size(); ++i ) {
+		nodeids.push_back(nodes_.at(i).id);
+		nodefns.push_back(nodes_.at(i).fn);
+		nodeTypes.push_back(nodes_.at(i).type);
+	}
+
+	for(int i = 0 ; i < arcs_.shape(0); ++i) {
+		arcs.push_back(nodeids[arcs_.at(i,0)]);
+		arcs.push_back(nodeids[arcs_.at(i,1)]);
+	}
+
+	ContourTreeData ctdata;
+	ctdata.loadData(nodeids,nodefns,nodeTypes,arcs);
+
+	SimplifyCT sim;
+	sim.setInput(&ctdata);
+
+	Persistence simfn(ctdata);
+	sim.simplify(&simfn);
+
+	std::vector<uint32_t> order;
+	std::vector<float>   wts;
+
+	sim.outputOrder(order,wts);
+
+	return py::make_tuple(py::array(order.size(),order.data()),
+						  py::array(wts.size(),wts.data()));
+
+}
+
 
 PYBIND11_MODULE(pyrg, m) {
 
@@ -168,6 +205,7 @@ PYBIND11_MODULE(pyrg, m) {
     ;
 
     m.def("computeCT_Grid3D",&computeCT_Grid3D,"Compute the contour tree on a structured3D grid");
+	m.def("simplifyCT_Pers",&simplifyCT_Pers,"Simplify contour tree using persistence");
 
 
 }
