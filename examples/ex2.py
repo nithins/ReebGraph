@@ -5,86 +5,65 @@ import vtk
 from PyQt4 import QtCore, QtGui
 from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import numpy as np
- 
-class MainWindow(QtGui.QMainWindow):
- 
-    def __init__(self, parent = None):
-        QtGui.QMainWindow.__init__(self, parent)
- 
-        self.frame = QtGui.QFrame()
- 
-        self.vl = QtGui.QVBoxLayout()
-        self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
-        self.vl.addWidget(self.vtkWidget)
- 
-        self.ren = vtk.vtkRenderer()
-        self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
-        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
-         
-        # Create Dataset
-        self.dataset = self.create_dataset();
+
+def create_dataset():
+    """
+    make a dataset with 3 gaussian features
+    """
+    import numpy as np
+    from scipy.stats import multivariate_normal
+
+
+    def make_gaussian(size=(30,30,30),mu=(0,0,0),sigma=(0.25,0.25,0.25)):
+
+        x, y, z = np.mgrid[-1.0:1.0:64j, -1.0:1.0:64j,-1.0:1.0:64j]
+        # Need an (N, 2) array of (x, y) pairs.
+        xyz = np.column_stack([x.flat, y.flat,z.flat])
+
+        mu = np.array(mu)
+
+        sigma = np.array(sigma)
+        covariance = np.diag(sigma**2)
+
+        f = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
+
+        # Reshape back to a (30, 30) grid.
+        f = f.reshape(x.shape)
         
-        # Create Volume
-        volume = self.create_volume()
- 
-        self.ren.AddVolume(volume)
- 
-        self.ren.ResetCamera()
- 
-        self.frame.setLayout(self.vl)
-        self.setCentralWidget(self.frame)
- 
-        self.show()
-        self.iren.Initialize()
+        f = np.array(f,dtype=np.float32)
         
-    def create_dataset(self):
-        import numpy as np
-        from scipy.stats import multivariate_normal
+        return f
+
+    
+    arr   = make_gaussian(mu=(0,0,0))  
+    arr  += make_gaussian(mu=(0.5,0,0))  
+    arr  += make_gaussian(mu=(0.5,-0.5,0.5))        
+    return arr
+
+    #data_matrix = np.zeros([75, 75, 75], dtype=np.uint8)
+    #data_matrix[0:35, 0:35, 0:35] = 50
+    #data_matrix[25:55, 25:55, 25:55] = 100
+    #data_matrix[45:74, 45:74, 45:74] = 150
+
+    #return data_matrix
 
 
-        def make_gaussian(size=(30,30,30),mu=(0,0,0),sigma=(0.25,0.25,0.25)):
 
-            x, y, z = np.mgrid[-1.0:1.0:64j, -1.0:1.0:64j,-1.0:1.0:64j]
-            # Need an (N, 2) array of (x, y) pairs.
-            xyz = np.column_stack([x.flat, y.flat,z.flat])
-
-            mu = np.array(mu)
-
-            sigma = np.array(sigma)
-            covariance = np.diag(sigma**2)
-
-            f = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
-
-            # Reshape back to a (30, 30) grid.
-            f = f.reshape(x.shape)
-            
-            f = np.array(f,dtype=np.float32)
-            
-            return f
-
-        #make a gaussian with 3 features
-        arr   = make_gaussian(mu=(0,0,0))  
-        arr  += make_gaussian(mu=(0.5,0,0))  
-        arr  += make_gaussian(mu=(0.5,-0.5,0.5))        
-        return arr
+class VolumeRenderPipeine:
+    """
+    Given an input numpy volume this will volume render to given vtkWidget
+    """ 
+    def __init__(self, arr, vtkWidget):
+        self.arr       = arr # input volume
+        self.vtkWidget = vtkWidget #output render widget
         
-        #data_matrix = np.zeros([75, 75, 75], dtype=np.uint8)
-        #data_matrix[0:35, 0:35, 0:35] = 50
-        #data_matrix[25:55, 25:55, 25:55] = 100
-        #data_matrix[45:74, 45:74, 45:74] = 150
-
-        #return data_matrix
-        
-    def create_volume(self):
         
         from vtk.util import numpy_support as nps
         
         # We begin by creating the data we want to render.
         # For this tutorial, we create a 3D-image containing three overlaping cubes. 
         # This data can of course easily be replaced by data from a medical CT-scan or anything else three dimensional.
-        # The only limit is that the data must be reduced to unsigned 8 bit or 16 bit integers.
         
-        arr = self.dataset
         fmin,fmax = np.min(arr),np.max(arr)
         
         def nfv(t):
@@ -138,7 +117,49 @@ class MainWindow(QtGui.QMainWindow):
         volume.SetMapper(volumeMapper)
         volume.SetProperty(volumeProperty)
         
-        return volume
+        # add a renderer to the widget
+        self.vtkWidget.ren = vtk.vtkRenderer()
+        self.vtkWidget.GetRenderWindow().AddRenderer(self.vtkWidget.ren)
+        
+        # add a volume and ResetCamera
+        self.vtkWidget.ren.AddVolume(volume) 
+        self.vtkWidget.ren.ResetCamera()
+        
+        #prepare interactor
+        self.vtkWidget.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
+        self.vtkWidget.iren.Initialize()
+        
+
+ 
+class MainWindow(QtGui.QMainWindow):
+ 
+    def __init__(self, parent = None):
+        QtGui.QMainWindow.__init__(self, parent)
+ 
+        self.frame = QtGui.QFrame()
+ 
+        self.hl = QtGui.QHBoxLayout()
+        self.vtkWidget_vr = QVTKRenderWindowInteractor(self.frame)
+        self.vtkWidget_rg = QVTKRenderWindowInteractor(self.frame)
+        self.hl.addWidget(self.vtkWidget_vr)
+        self.hl.addWidget(self.vtkWidget_rg)
+        
+        self.frame.setLayout(self.hl)
+        self.setCentralWidget(self.frame)
+ 
+        self.show()
+
+          
+        # Create Dataset
+        self.dataset = create_dataset();
+        
+        # Create Volume Render pipeline
+        self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr) 
+ 
+        
+        
+                
+
 
  
  
