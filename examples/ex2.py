@@ -20,24 +20,13 @@ class MainWindow(QtGui.QMainWindow):
         self.ren = vtk.vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
- 
-        # Create source
-        source = vtk.vtkSphereSource()
-        source.SetCenter(0, 0, 0)
-        source.SetRadius(5.0)
- 
-        # Create a mapper
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputConnection(source.GetOutputPort())
- 
-        # Create an actor
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
+         
+        # Create Dataset
+        self.dataset = self.create_dataset();
         
         # Create Volume
         volume = self.create_volume()
  
-        self.ren.AddActor(actor)
         self.ren.AddVolume(volume)
  
         self.ren.ResetCamera()
@@ -48,48 +37,88 @@ class MainWindow(QtGui.QMainWindow):
         self.show()
         self.iren.Initialize()
         
+    def create_dataset(self):
+        import numpy as np
+        from scipy.stats import multivariate_normal
+
+
+        def make_gaussian(size=(30,30,30),mu=(0,0,0),sigma=(0.25,0.25,0.25)):
+
+            x, y, z = np.mgrid[-1.0:1.0:64j, -1.0:1.0:64j,-1.0:1.0:64j]
+            # Need an (N, 2) array of (x, y) pairs.
+            xyz = np.column_stack([x.flat, y.flat,z.flat])
+
+            mu = np.array(mu)
+
+            sigma = np.array(sigma)
+            covariance = np.diag(sigma**2)
+
+            f = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
+
+            # Reshape back to a (30, 30) grid.
+            f = f.reshape(x.shape)
+            
+            f = np.array(f,dtype=np.float32)
+            
+            return f
+
+        #make a gaussian with 3 features
+        arr   = make_gaussian(mu=(0,0,0))  
+        arr  += make_gaussian(mu=(0.5,0,0))  
+        arr  += make_gaussian(mu=(0.5,-0.5,0.5))        
+        return arr
+        
+        #data_matrix = np.zeros([75, 75, 75], dtype=np.uint8)
+        #data_matrix[0:35, 0:35, 0:35] = 50
+        #data_matrix[25:55, 25:55, 25:55] = 100
+        #data_matrix[45:74, 45:74, 45:74] = 150
+
+        #return data_matrix
+        
     def create_volume(self):
+        
+        from vtk.util import numpy_support as nps
+        
         # We begin by creating the data we want to render.
         # For this tutorial, we create a 3D-image containing three overlaping cubes. 
         # This data can of course easily be replaced by data from a medical CT-scan or anything else three dimensional.
         # The only limit is that the data must be reduced to unsigned 8 bit or 16 bit integers.
-        data_matrix = np.zeros([75, 75, 75], dtype=np.uint8)
-        data_matrix[0:35, 0:35, 0:35] = 50
-        data_matrix[25:55, 25:55, 25:55] = 100
-        data_matrix[45:74, 45:74, 45:74] = 150
-
-        # For VTK to be able to use the data, it must be stored as a VTK-image. This can be done by the vtkImageImport-class which
-        # imports raw data and stores it. 
-        dataImporter = vtk.vtkImageImport()
-        # The preaviusly created array is converted to a string of chars and imported.
-        data_string = data_matrix.tostring()
-        dataImporter.CopyImportVoidPointer(data_string, len(data_string))
-        # The type of the newly imported data is set to unsigned char (uint8)
-        dataImporter.SetDataScalarTypeToUnsignedChar()
-        # Because the data that is imported only contains an intensity value (it isnt RGB-coded or someting similar), the importer
-        # must be told this is the case.
-        dataImporter.SetNumberOfScalarComponents(1)
-        # The following two functions describe how the data is stored and the dimensions of the array it is stored in. For this
-        # simple case, all axes are of length 75 and begins with the first element. For other data, this is probably not the case.
-        # I have to admit however, that I honestly dont know the difference between SetDataExtent() and SetWholeExtent() although
-        # VTK complains if not both are used.
-        dataImporter.SetDataExtent(0, 74, 0, 74, 0, 74)
-        dataImporter.SetWholeExtent(0, 74, 0, 74, 0, 74)
+        
+        arr = self.dataset
+        fmin,fmax = np.min(arr),np.max(arr)
+        
+        def nfv(t):
+            return fmin+t*(fmax - fmin)
+                        
+        
+        scalars = nps.numpy_to_vtk(arr.ravel())
+        scalars.SetName("Scalars")
+        
+        imageData = vtk.vtkImageData()
+        
+        imageData.SetDimensions(arr.shape)
+        #assume 0,0 origin and 1,1 spacing.
+        #__depthImageData.SetSpacing([1,1])
+        #__depthImageData.SetOrigin([0,0])
+        imageData.GetPointData().SetScalars(scalars)
+        imageData.SetExtent(0, arr.shape[2]-1, 0, arr.shape[1]-1, 0, arr.shape[0]-1)
+        imageData.SetWholeExtent(0, arr.shape[2]-1, 0, arr.shape[1]-1, 0, arr.shape[0]-1)
+        imageData.Update()  
 
         # The following class is used to store transparencyv-values for later retrival. In our case, we want the value 0 to be
         # completly opaque whereas the three different cubes are given different transperancy-values to show how it works.
         alphaChannelFunc = vtk.vtkPiecewiseFunction()
-        alphaChannelFunc.AddPoint(0, 0.0)
-        alphaChannelFunc.AddPoint(50, 0.05)
-        alphaChannelFunc.AddPoint(100, 0.1)
-        alphaChannelFunc.AddPoint(150, 0.2)
+        alphaChannelFunc.AddPoint(nfv(0.0) ,  0.0)
+        alphaChannelFunc.AddPoint(nfv(0.2) ,  0.01)
+        alphaChannelFunc.AddPoint(nfv(0.5)  ,  0.1)
+        alphaChannelFunc.AddPoint(nfv(1.0)  , 0.2)
 
         # This class stores color data and can create color tables from a few color points. For this demo, we want the three cubes
         # to be of the colors red green and blue.
         colorFunc = vtk.vtkColorTransferFunction()
-        colorFunc.AddRGBPoint(50, 1.0, 0.0, 0.0)
-        colorFunc.AddRGBPoint(100, 0.0, 1.0, 0.0)
-        colorFunc.AddRGBPoint(150, 0.0, 0.0, 1.0)
+        colorFunc.AddRGBPoint(nfv(0.01) , 0.0, 0.0, 1.0)
+        colorFunc.AddRGBPoint(nfv(0.5)  , 1.0, 1.0, 1.0)
+        colorFunc.AddRGBPoint(nfv(1.0)  , 1.0, 0.0, 0.0)
 
         # The preavius two classes stored properties. Because we want to apply these properties to the volume we want to render,
         # we have to store them in a class that stores volume prpoperties.
@@ -100,26 +129,14 @@ class MainWindow(QtGui.QMainWindow):
         # This class describes how the volume is rendered (through ray tracing).
         compositeFunction = vtk.vtkVolumeRayCastCompositeFunction()
         # We can finally create our volume. We also have to specify the data for it, as well as how the data will be rendered.
-        volumeMapper = vtk.vtkVolumeRayCastMapper()
-        volumeMapper.SetVolumeRayCastFunction(compositeFunction)
-        volumeMapper.SetInputConnection(dataImporter.GetOutputPort())
+        volumeMapper = vtk.vtkOpenGLGPUVolumeRayCastMapper()
+        #volumeMapper.SetVolumeRayCastFunction(compositeFunction)
+        volumeMapper.SetInputConnection(imageData.GetProducerPort())
 
         # The class vtkVolume is used to pair the preaviusly declared volume as well as the properties to be used when rendering that volume.
         volume = vtk.vtkVolume()
         volume.SetMapper(volumeMapper)
         volume.SetProperty(volumeProperty)
-
-        ## With almost everything else ready, its time to initialize the renderer and window, as well as creating a method for exiting the application
-        #renderer = vtk.vtkRenderer()
-        #renderWin = vtk.vtkRenderWindow()
-        #renderWin.AddRenderer(renderer)
-        #renderInteractor = vtk.vtkRenderWindowInteractor()
-        #renderInteractor.SetRenderWindow(renderWin)
-
-        ## We add the volume to the renderer ...
-        #renderer.AddVolume(volume)
-        ## ... set background color to white ...
-        #renderer.SetBackground(1, 1, 1)
         
         return volume
 
