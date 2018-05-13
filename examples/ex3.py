@@ -123,16 +123,11 @@ class VolumeRenderPipeine:
         #prepare interactor
         self.iren = self.renderWindow.GetInteractor()
         self.iren.Initialize()
-
-
-
-class ReebgraphModel(QObject):
-    @pyqtSlot()
-    def quit(self):
-        QApplication.quit()
+        
+        
 
 class WebViewWindow(QtGui.QWidget):
-    def __init__(self, parent = None):
+    def __init__(self,parent = None):
         QtGui.QWidget.__init__(self, parent)
 #        super(Window, self).__init__()
         self.view = QWebView(self)
@@ -149,19 +144,26 @@ class WebViewWindow(QtGui.QWidget):
         self.splitter.addWidget(self.view)
         self.splitter.addWidget(self.webInspector)
         
+        self.rgm = None
+        
         
         shortcut = QtGui.QShortcut(self)
         shortcut.setKey(Qt.Key_F5)
         shortcut.activated.connect(self.refresh)
         
-        self.rgm = ReebgraphModel(self)
-        self.view.page().mainFrame().addToJavaScriptWindowObject("rgm", self.rgm)
-        
-        self.refresh()
+        self.view.page().mainFrame().javaScriptWindowObjectCleared.connect(self.addJsObjects)
+                
 
-
+    def addJsObjects(self):
+        if self.rgm != None:
+            self.view.page().mainFrame().addToJavaScriptWindowObject("rgm", self.rgm)
         
-    def refresh(self):
+        
+    def refresh(self,rgm=None):
+        
+        if rgm != None:
+            self.rgm = rgm        
+                        
         self.view.setHtml(open("force.html").read())
 
     def setupInspector(self):
@@ -177,8 +179,34 @@ class WebViewWindow(QtGui.QWidget):
 
     def toggleInspector(self):
         self.webInspector.setVisible(not self.webInspector.isVisible())
+
+
+class ReebgraphModel(QObject):
+
+    def __init__(self, rg, parent = None):
+        QObject.__init__(self, parent)
+        self.rg = rg
+    
+    
+    @pyqtSlot(result=str)
+    def json(self):
+        import json
+        
+        nodes,arcs = self.rg[0],self.rg[1]
+
+        rng   = [float(nodes["fn"].min()),float(nodes["fn"].max())]                
+        nodes = [ {"id":i, "name":str(n["id"]), "fn":float(n["fn"]),"group":int(n["type"]) } for i,n in enumerate(self.rg[0])]
+        links = [ {"source":arc[0], "target":arc[1]} for arc in arcs ]
+        
+        return json.dumps({"nodes":nodes,"links":links,"range":rng})
+    
+    @pyqtSlot()
+    def quit(self):
+        QApplication.quit()
+
         
 class MainWindow(QtGui.QMainWindow):
+    
  
     def __init__(self, parent = None):
         QtGui.QMainWindow.__init__(self, parent)
@@ -187,8 +215,8 @@ class MainWindow(QtGui.QMainWindow):
         self.dataset = create_dataset();   
         
         # Compute Reeb graph
-        self.rg = pyrg.computeCT_Grid3D(self.dataset)        
-        
+        self.rg = pyrg.computeCT_Grid3D(self.dataset)
+                
         # Create UI 
         
         self.splitter = QtGui.QSplitter(self)
@@ -207,13 +235,17 @@ class MainWindow(QtGui.QMainWindow):
         
         self.setCentralWidget(self.splitter)
         
-        self.show()          
+        self.show()
+        
+        self.webview.refresh(ReebgraphModel(self.rg,self))
         
         ## Create Volume Render pipeline
         self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow()) 
  
         ## Create Reebgraph Render pipeline
         #self.reebgraphRenderPipeline = ReebgraphRenderPipeline(self.dataset,self.vtkWidget_rg.GetRenderWindow()) 
+        
+        
 
 
 def main():
