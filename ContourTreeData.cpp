@@ -69,9 +69,11 @@ void ContourTreeData::loadBinFile(std::string fileName) {
 		std::stringstream ss(line);
         ss >> noNodes;
 
-		std::getline(ip, line);
-		ss = std::stringstream(line);
-		ss >> noArcs;
+        {
+            std::getline(ip, line);
+            std::stringstream ss(line);
+            ss >> noArcs;
+        }
 
         ENSURES(noNodes == noArcs + 1) << SVAR(noNodes) << SVAR(noArcs);
         ip.close();

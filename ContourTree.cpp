@@ -99,12 +99,9 @@ void ContourTree::output(
     std::vector<scalar_t> &nodefns,
     std::vector<char>     &nodeTypes,
     std::vector<int64_t>  &arcs,
-    std::vector<uint32_t> &arcMap
+	uint32_t *arcMap
         )
 {
-
-    arcMap.resize(nv, -1);
-
     uint32_t arcNo = 0;
     for(int64_t i = 0;i < nv;i ++) {
         // go in sorted order
@@ -153,8 +150,9 @@ void ContourTree::output(std::string fileName) {
     std::vector<char> nodeTypes;
     std::vector<int64_t> arcs;
     std::vector<uint32_t> arcMap;
+	arcMap.resize(nv, -1);
 
-    ContourTree::output(nodeids,nodefns,nodeTypes,arcs,arcMap);
+	ContourTree::output(nodeids,nodefns,nodeTypes,arcs,arcMap.data());
 
     // write meta data
     std::cout << "Writing meta data";

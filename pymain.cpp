@@ -25,8 +25,9 @@ py::tuple simplifyContourTree(ContourTree &ct) {
     std::vector<char> nodeTypes;
     std::vector<int64_t> arcs;
     std::vector<uint32_t> arcMap;
+	arcMap.resize(ct.nv);
 
-    ct.output(nodeids,nodefns,nodeTypes,arcs,arcMap);
+	ct.output(nodeids,nodefns,nodeTypes,arcs,arcMap.data());
 
     std::cout << SVAR(nodeids.size()) << std::endl;
     std::cout << SVAR(nodefns.size()) << std::endl;
@@ -77,8 +78,8 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> grid){
     size_t Y = grid.shape(1);
     size_t Z = grid.shape(0);
 
-    Grid3D g(X,Y,Z);
-    std::copy(grid.data(),grid.data()+X*Y*Z,g.data());
+
+	Grid3D g(grid.mutable_data(),X,Y,Z);
 
     MergeTree mt;
     mt.computeTree(&g,TypeContourTree);
@@ -87,9 +88,10 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> grid){
     std::vector<scalar_t> nodefns;
     std::vector<char> nodeTypes;
     std::vector<int64_t> arcs;
-    std::vector<uint32_t> arcMap;
+	py::array_t<uint32_t> arcMap;
+	arcMap.resize({Z,Y,X});
 
-    mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMap);
+	mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMap.mutable_data());
 
     std::vector<py_node> nodes(nodeids.size());
 
@@ -114,12 +116,10 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> grid){
 
     auto nodes_   = py::array(nodes.size(),nodes.data());
     auto arcs_    = py::array(arcs.size(),arcs.data());
-    auto arcMap_  = py::array(arcMap.size(),arcMap.data());
     arcs_.resize({arcs.size()/2,size_t(2)},true);
-    arcMap_.resize({X,Y,Z},true);
 
 
-    return py::make_tuple(nodes_,arcs_,arcMap_);
+	return py::make_tuple(nodes_,arcs_,arcMap);
 }
 
 

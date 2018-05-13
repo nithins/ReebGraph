@@ -30,7 +30,7 @@ public:
         std::vector<scalar_t> &nodefns,
         std::vector<char>     &nodeTypes,
         std::vector<int64_t>  &arcs,
-        std::vector<uint32_t> &arcMap
+		uint32_t *arcMap
      );
 
 private:

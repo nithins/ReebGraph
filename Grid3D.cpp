@@ -15,11 +15,20 @@ bool endsWith(std::string s, std::string ext) {
 
 namespace contourtree {
 
+Grid3D::Grid3D (scalar_t *fnVals, int resx, int resy, int resz):
+	fnVals(fnVals),dimx(resx), dimy(resy), dimz(resz)
+{
+	nv = dimx * dimy * dimz;
+	this->updateStars();
+}
+
+
 Grid3D::Grid3D(int resx, int resy, int resz) :
     dimx(resx), dimy(resy), dimz(resz)
 {
     nv = dimx * dimy * dimz;
-    this->fnVals.resize(nv,-1); // fnVals must resize only on ctor
+	this->fnVals_.resize(nv,-1); // fnVals must resize only on ctor
+	this->fnVals = this->fnVals_.data();
     this->updateStars();
 }
 
@@ -69,7 +78,7 @@ bool Grid3D::lessThan(int64_t v1, int64_t v2) {
 void Grid3D::loadGrid(std::string fileName) {
 	if (endsWith(fileName, ".raw")) {
 		std::ifstream ip(fileName, std::ios::binary);
-		ip.read((char *)(void *)fnVals.data(), nv*sizeof(scalar_t));
+		ip.read((char *)(void *)fnVals, nv*sizeof(scalar_t));
 		ip.close();
 	}
 	else if (endsWith(fileName, ".csv")) {

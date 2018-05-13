@@ -19,6 +19,7 @@ class Grid3D : public ScalarFunction
 {
 public:
     Grid3D (int resx, int resy, int resz);
+	Grid3D (scalar_t *fnVals, int resx, int resy, int resz);
 
 public:
     int getMaxDegree();
@@ -28,7 +29,7 @@ public:
     scalar_t getFunctionValue(int64_t v);
 
 public:
-    scalar_t *data(){return fnVals.data();}
+	scalar_t *data(){return fnVals;}
     inline size_t dimX() const{return dimx;}
     inline size_t dimY() const{return dimy;}
     inline size_t dimZ() const{return dimz;}
@@ -45,7 +46,8 @@ private:
     std::vector<Tet> tets;
     int starin[14][3];
     int64_t star[14];
-    std::vector<scalar_t> fnVals;
+	scalar_t *fnVals = nullptr;
+	std::vector<scalar_t> fnVals_;
 
 public:
     inline int64_t index(int64_t x, int64_t y, int64_t z) {
