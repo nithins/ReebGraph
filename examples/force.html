@@ -53,15 +53,20 @@ function setup(graph) {
           .on("end", dragended));
 
   node.append("title")
-      .text(function(d) {/*d.fy = nrmfn(d); */return "id:"+d.id+",fn:"+d.fn; });
+      .text(function(d) {return "id:"+d.id+",fn:"+d.fn; });
         
   simulation
       .nodes(graph.nodes)
       .on("tick", ticked);
 
   simulation.force("link")
-      .links(graph.links);
+      .links(graph.links)
+      .distance(function(d) {l = Math.abs(d.source.fn - d.target.fn); console.log(l); return 50*l;});
 
+  simulation.force('y', d3.forceY().y(function(d) {
+    return height - d.fn*50;
+   }))
+      
   function ticked() {
     link
         .attr("x1", function(d) { return d.source.x; })
