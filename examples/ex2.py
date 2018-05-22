@@ -106,7 +106,7 @@ class VolumeRenderPipeine:
 
         # We can finally create our volume. We also have to specify the data for it, as well as how the data will be rendered.
         volumeMapper = vtk.vtkOpenGLGPUVolumeRayCastMapper()        
-        volumeMapper.SetInputData(imageData)
+        volumeMapper.SetInputData(imageData) if vtk.VTK_MAJOR_VERSION > 5 else volumeMapper.SetInputConnection(imageData.GetProducerPort())
 
         # The class vtkVolume is used to pair the preaviusly declared volume as well as the properties to be used when rendering that volume.
         volume = vtk.vtkVolume()

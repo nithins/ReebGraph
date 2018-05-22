@@ -99,8 +99,8 @@ class VolumeRenderPipeine:
         volumeProperty.SetScalarOpacity(alphaChannelFunc)
 
         # We can finally create our volume. We also have to specify the data for it, as well as how the data will be rendered.
-        volumeMapper = vtk.vtkOpenGLGPUVolumeRayCastMapper()        
-        volumeMapper.SetInputData(imageData)
+        volumeMapper = vtk.vtkOpenGLGPUVolumeRayCastMapper()
+        volumeMapper.SetInputData(imageData) if vtk.VTK_MAJOR_VERSION > 5 else volumeMapper.SetInputConnection(imageData.GetProducerPort())
 
         # The class vtkVolume is used to pair the preaviusly declared volume as well as the properties to be used when rendering that volume.
         volume = vtk.vtkVolume()
@@ -178,22 +178,62 @@ class WebViewWindow(QtGui.QWidget):
 
 class ReebgraphModel(QObject):
 
-    def __init__(self, rg, parent = None):
+    def __init__(self, dataset, parent = None):
         QObject.__init__(self, parent)
-        self.rg = rg
-    
+        self.ds  = dataset        
+        self.nodes,self.arcs,self.arcmap  = pyrg.computeCT_Grid3D(self.ds)
+        self.sorder,self.swts,self.shier  = pyrg.simplifyCT_Pers(self.nodes,self.arcs)           
     
     @pyqtSlot(result=str)
     def json(self):
         import json
         
-        nodes,arcs = self.rg[0],self.rg[1]
+        nodes,arcs = self.nodes,self.arcs
 
         rng   = [float(nodes["fn"].min()),float(nodes["fn"].max())]                
-        nodes = [ {"id":i, "name":str(n["id"]), "fn":float(n["fn"]),"group":int(n["type"]) } for i,n in enumerate(self.rg[0])]
+        nodes = [ {"id":i, "name":str(n["id"]), "fn":float(n["fn"]),"group":int(n["type"]) } for i,n in enumerate(nodes)]
         links = [ {"source":arc[0], "target":arc[1]} for arc in arcs ]
         
         return json.dumps({"nodes":nodes,"links":links,"range":rng})
+
+    @pyqtSlot(result=str)
+    def hierTree_json(self):
+        import json
+        
+        nodes,arcs = self.nodes,self.arcs
+        
+        arcTree = dict([(str((a,b)),
+                         {"name":str((a,b)),
+                          #"size":float(nodes[b]["fn"] - nodes[a]["fn"]),
+                          #"size":10,
+                          "size":1 + 100*float(nodes[b]["fn"] - nodes[a]["fn"]),
+                          }) for (a,b) in arcs])
+        
+        for c,m,d,u in self.shier:
+            
+            clu = str((min(c,m),max(c,m)))
+            m_u = str((m,u))
+            d_m = str((d,m))
+            d_u = str((d,u))            
+            
+            assert not arcTree.has_key((d_u))
+            arcTree[d_u] = {
+                "name":d_u,
+                "children": [arcTree[clu],arcTree[d_m],arcTree[m_u]],
+                #"size":float(nodes[u]["fn"] - nodes[d]["fn"]),
+                
+                }
+            del arcTree[m_u]
+            del arcTree[d_m]
+            del arcTree[clu]
+            
+        
+        for k,v in arcTree.iteritems():
+            arcTree = {"name":str(k),"children":v["children"]}
+            break;                                                  
+        
+        return json.dumps(arcTree)
+
     
     @pyqtSlot()
     def quit(self):
@@ -208,15 +248,8 @@ class MainWindow(QtGui.QMainWindow):
         
         # Create Dataset
         self.dataset = create_dataset();   
-        
-        # Compute Reeb graph
-        self.rg = pyrg.computeCT_Grid3D(self.dataset)
-        self.rg_simp = pyrg.simplifyCT_Pers(self.rg[0],self.rg[1])
-        
-        print self.rg_simp[0]
-                
-        # Create UI 
-        
+                        
+        # Create UI        
         self.splitter = QtGui.QSplitter(self)
         self.splitter.setOrientation(Qt.Horizontal)
         
@@ -235,7 +268,7 @@ class MainWindow(QtGui.QMainWindow):
         
         self.show()
         
-        self.webview.refresh(ReebgraphModel(self.rg,self))
+        self.webview.refresh(ReebgraphModel(self.dataset,self))
         
         ## Create Volume Render pipeline
         self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow()) 
