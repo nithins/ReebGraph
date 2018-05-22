@@ -154,8 +154,25 @@ py::tuple simplifyCT_Pers(py::array_t<py_node> &nodes_, py::array_t<int64_t> &ar
 
 	sim.outputOrder(order,wts);
 
-	return py::make_tuple(py::array(order.size(),order.data()),
-						  py::array(wts.size(),wts.data()));
+    std::vector<uint32_t> orderPairs;
+    for(int i = 0 ;i < order.size(); ++i) {
+        orderPairs.push_back(sim.branches[order[i]].from);
+        orderPairs.push_back(sim.branches[order[i]].to);
+    }
+
+    std::vector<uint32_t> featureHierarchy;
+    {
+
+        SimplifyCT sim;
+        sim.setInput(&ctdata);
+
+        sim.computeFeatureHierarchy(order,featureHierarchy);
+    }
+
+    return py::make_tuple(py::array({order.size(),(size_t)2},orderPairs.data()),
+                          py::array(wts.size(),wts.data()),
+                          py::array({order.size()-1,(size_t)4},featureHierarchy.data())
+                          );
 
 }
 

@@ -76,8 +76,6 @@ class VolumeRenderPipeine:
         #__depthImageData.SetOrigin([0,0])
         imageData.GetPointData().SetScalars(scalars)
         imageData.SetExtent(0, arr.shape[2]-1, 0, arr.shape[1]-1, 0, arr.shape[0]-1)
-        imageData.SetWholeExtent(0, arr.shape[2]-1, 0, arr.shape[1]-1, 0, arr.shape[0]-1)
-        imageData.Update()  
 
         # The following class is used to store transparencyv-values for later retrival. In our case, we want the value 0 to be
         # completly opaque whereas the three different cubes are given different transperancy-values to show how it works.
@@ -100,12 +98,9 @@ class VolumeRenderPipeine:
         volumeProperty.SetColor(colorFunc)
         volumeProperty.SetScalarOpacity(alphaChannelFunc)
 
-        # This class describes how the volume is rendered (through ray tracing).
-        compositeFunction = vtk.vtkVolumeRayCastCompositeFunction()
         # We can finally create our volume. We also have to specify the data for it, as well as how the data will be rendered.
-        volumeMapper = vtk.vtkOpenGLGPUVolumeRayCastMapper()
-        #volumeMapper.SetVolumeRayCastFunction(compositeFunction)
-        volumeMapper.SetInputConnection(imageData.GetProducerPort())
+        volumeMapper = vtk.vtkOpenGLGPUVolumeRayCastMapper()        
+        volumeMapper.SetInputData(imageData)
 
         # The class vtkVolume is used to pair the preaviusly declared volume as well as the properties to be used when rendering that volume.
         volume = vtk.vtkVolume()
@@ -164,7 +159,7 @@ class WebViewWindow(QtGui.QWidget):
         if rgm != None:
             self.rgm = rgm        
                         
-        self.view.setHtml(open("force.html").read())
+        self.view.setUrl(QUrl("force.html"))
 
     def setupInspector(self):
         page = self.view.page()
@@ -216,6 +211,9 @@ class MainWindow(QtGui.QMainWindow):
         
         # Compute Reeb graph
         self.rg = pyrg.computeCT_Grid3D(self.dataset)
+        self.rg_simp = pyrg.simplifyCT_Pers(self.rg[0],self.rg[1])
+        
+        print self.rg_simp[0]
                 
         # Create UI 
         

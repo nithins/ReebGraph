@@ -50,7 +50,7 @@ if __name__=="__main__":
     #print w
     
     nodes,arcs,amap =  rg.computeCT_Grid3D(make_function())
-    aseq,awts  = rg.simplifyCT_Pers(nodes,arcs)
+    aseq,awts,fh  = rg.simplifyCT_Pers(nodes,arcs)
 
     
     print
@@ -58,3 +58,4 @@ if __name__=="__main__":
     print arcs    
     print aseq
     print awts
+    print fh

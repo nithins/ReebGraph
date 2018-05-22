@@ -195,10 +195,10 @@ void SimplifyCT::mergeVertex(uint32_t v) {
 }
 
 void SimplifyCT::simplify(contourtree::SimFunction *simFn) {
-    std::cout << "init";
+    std::cout << "init"<< std::endl;
     initSimplification(simFn);
 
-    std::cout << "going over priority queue";
+    std::cout << "going over priority queue"<< std::endl;
     while(queue.size() > 0) {
         uint32_t ano = queue.top();
         queue.pop();
@@ -216,7 +216,7 @@ void SimplifyCT::simplify(contourtree::SimFunction *simFn) {
             }
         }
     }
-    std::cout << "pass over removed";
+    std::cout << "pass over removed"<< std::endl;
     int root = 0;
     for(int i = 0;i < removed.size();i ++) {
         if(!removed[i]) {
@@ -229,10 +229,10 @@ void SimplifyCT::simplify(contourtree::SimFunction *simFn) {
 
 
 void SimplifyCT::simplify(const std::vector<uint32_t> &order, int topk, float th, const std::vector<float> &wts) {
-    std::cout << "init";
+    std::cout << "init"<< std::endl;
     initSimplification(NULL);
 
-    std::cout << "going over order queue";
+    std::cout << "going over order queue"<< std::endl;
     for(int i = 0;i < order.size();i ++) {
         inq[order.at(i)] = true;
     }
@@ -286,7 +286,7 @@ void SimplifyCT::outputOrder(std::vector<uint32_t> &order,std::vector<float> &wt
 }
 
 void SimplifyCT::outputOrder(std::string fileName) {
-    std::cout << "Writing meta data";
+    std::cout << "Writing meta data"<< std::endl;
     {
 		std::ofstream pr(fileName + ".order.dat");
 		if (!pr.is_open()) {
@@ -301,13 +301,109 @@ void SimplifyCT::outputOrder(std::string fileName) {
     std::vector<float> wts;
     outputOrder(order,wts);
 
-    std::cout << "writing tree output";
+    std::cout << "writing tree output"<< std::endl;
     std::string binFile = fileName + ".order.bin";
     std::ofstream of(binFile,std::ios::binary);
     of.write((char *)order.data(),order.size() * sizeof(uint32_t));
     of.write((char *)wts.data(),wts.size() * sizeof(float));
 //    of.write((char *)arcs.data(),arcs.size() * sizeof(uint32_t));
     of.close();
+}
+
+void SimplifyCT::computeFeatureHierarchy(const std::vector<uint32_t> &order,std::vector<uint32_t> &featureHierarchy){
+    std::cout << "init" << std::endl;
+    initSimplification(NULL);
+
+    featureHierarchy.clear();
+
+    std::cout << "going over order queue"<< std::endl;
+    for(int i = 0;i < order.size();i ++) {
+        inq[order.at(i)] = true;
+    }
+
+    for(int i = 0;i < order.size()-1;i ++) {
+        uint32_t ano = order.at(i);
+        ENSURES(isCandidate(branches[ano])) << "failing candidate test" << SVAR(ano) << SVAR(i);
+        inq[ano] = false;
+
+
+        Branch br = branches[ano];
+        uint32_t from = br.from;
+        uint32_t to = br.to;
+        uint32_t mergedVertex = -1;
+        uint32_t destroyedVertex = -1;
+
+        uint32_t mergedVertexUp = -1;
+        uint32_t mergedVertexDown = -1;
+
+        if(nodes[from].prev.size() == 0) {
+            // minimum
+            mergedVertex = to;
+            destroyedVertex = from;
+
+            ENSURES(nodes[to].prev.size() == 2) << "Does not appaer to be a contour tree";
+
+            uint32_t ano_0 = nodes[to].prev[0];
+            uint32_t ano_1 = nodes[to].prev[1];
+            if(ano_0 != ano) std::swap(ano_0,ano_1);
+
+            ENSURES(nodes[to].next.size() == 1)<< "This arc could not be simplified";
+            uint32_t ano_2 = nodes[to].next[0];
+
+            ENSURES(ano_0 == ano && ano_1 != ano && ano_2 != ano);
+
+
+            //std::cout <<SVAR(ano) << SVAR(ano_0) << SVAR(ano_1) << SVAR(ano_2) << std::endl;
+
+            mergedVertexUp   = branches[ano_2].to;
+            mergedVertexDown = branches[ano_1].from;
+
+            //std::cout <<SVAR(mergedVertexUp) << SVAR(mergedVertexDown) << std::endl;
+
+
+        }
+        if(nodes[to].next.size() == 0) {
+            // maximum
+            mergedVertex = from;
+            destroyedVertex = to;
+
+            ENSURES(nodes[from].next.size() == 2)<< "Does not appaer to be a contour tree";
+
+            uint32_t ano_0 = nodes[from].next[0];
+            uint32_t ano_1 = nodes[from].next[1];
+            if(ano_0 != ano) std::swap(ano_0,ano_1);
+
+            ENSURES(nodes[from].prev.size() == 1);
+            uint32_t ano_2 = nodes[from].prev[0];
+
+            ENSURES(ano_0 == ano && ano_1 != ano && ano_2 != ano)"This arc could not be simplified";
+
+
+            //std::cout <<SVAR(ano) << SVAR(ano_0) << SVAR(ano_1) << SVAR(ano_2) << std::endl;
+
+            mergedVertexUp   = branches[ano_1].to;
+            mergedVertexDown = branches[ano_2].from;
+
+            //std::cout <<SVAR(mergedVertexUp) << SVAR(mergedVertexDown) << std::endl;
+
+        }
+
+
+//        std::cout <<"child1 = " << from<<", " << to << std::endl;
+//        std::cout <<"child2 = " << mergedVertexDown<<", " << mergedVertex << std::endl;
+//        std::cout <<"child3 = " << mergedVertex<<", " << mergedVertexUp << std::endl;
+//        std::cout <<"parent = " << mergedVertexDown<<", " << mergedVertexUp << std::endl;
+
+        featureHierarchy.push_back(destroyedVertex);
+        featureHierarchy.push_back(mergedVertex);
+        featureHierarchy.push_back(mergedVertexDown);
+        featureHierarchy.push_back(mergedVertexUp);
+
+
+        removeArc(ano);
+    }
+
+
 }
 
 }
