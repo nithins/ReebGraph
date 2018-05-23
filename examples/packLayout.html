@@ -76,6 +76,7 @@ function setup(root) {
       .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
       .attr("fill-opacity",0.35)
       .attr("stroke-opacity",1.0)
+      .on("click",function(d){console.log(d.data.name);})
 
   node.append("title")
       .text(function(d) { return d.data.name + "\n" + format(d.value); });
@@ -98,8 +99,10 @@ document.getElementById("simpSlider").oninput = function() {
 
     node.transition()
         .duration(750)
-        .attr("fill-opacity", function(d) { if(d.data.weight < t) return 0; return 0.35;})
-        .attr("stroke-opacity", function(d) {if(d.data.weight < t) return 0; return 1.0;})
+        .attr("fill-opacity", function(d) { return (d.data.weight < t) ? 0: 0.35;})
+        .attr("stroke-opacity", function(d) {return (d.data.weight < t) ? 0: 1;})
+        .on("end",function(d){if(d.data.weight < t) d3.select(this).attr("display","none");})
+        .on("start",function(d){if(!(d.data.weight < t)) d3.select(this).attr("display","block");})
         
     document.getElementById("simpValue").innerHTML=this.value/5+"%";
 

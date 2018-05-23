@@ -134,7 +134,7 @@ class WebViewWindow(QtGui.QWidget):
         if rgm != None:
             self.rgm = rgm        
                         
-        self.view.setUrl(QUrl("force.html"))
+        self.view.setUrl(QUrl("packLayout.html"))
 
     def setupInspector(self):
         page = self.view.page()
