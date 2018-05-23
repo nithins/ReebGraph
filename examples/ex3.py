@@ -106,6 +106,19 @@ class VolumeRenderPipeine:
         volume = vtk.vtkVolume()
         volume.SetMapper(volumeMapper)
         volume.SetProperty(volumeProperty)
+
+        # Add a bounding box around the dataset
+        bbFilter = vtk.vtkOutlineFilter()
+        bbFilter.SetInputConnection(imageData.GetProducerPort())
+
+        bbMapper = vtk.vtkDataSetMapper()
+        bbMapper.SetInputConnection(bbFilter.GetOutputPort())
+
+        bbActor = vtk.vtkActor()
+        bbActor.GetProperty().EdgeVisibilityOn()
+        bbActor.GetProperty().SetEdgeColor(1,1,1)
+        bbActor.SetMapper(bbMapper)
+
         
         # add a renderer to the widget
         self.ren = vtk.vtkRenderer()
@@ -113,11 +126,15 @@ class VolumeRenderPipeine:
         
         # add a volume and ResetCamera
         self.ren.AddVolume(volume) 
+        self.ren.AddActor(bbActor);
         self.ren.ResetCamera()
+
         
         #prepare interactor
+        istyle = vtk.vtkInteractorStyleTrackballCamera()
         self.iren = self.renderWindow.GetInteractor()
-        self.iren.Initialize()
+        self.iren.SetInteractorStyle(istyle)
+        self.iren.Initialize()       
         
         
 
@@ -159,7 +176,7 @@ class WebViewWindow(QtGui.QWidget):
         if rgm != None:
             self.rgm = rgm        
                         
-        self.view.setUrl(QUrl("force.html"))
+        self.view.setUrl(QUrl("packLayout.html"))
 
     def setupInspector(self):
         page = self.view.page()
@@ -202,26 +219,34 @@ class ReebgraphModel(QObject):
         
         nodes,arcs = self.nodes,self.arcs
         
+        def get_type(a,b):
+            return ("min" if nodes[a]["type"] == 1 else "sad") +"-" + ("max" if nodes[b]["type"] == 2 else "sad")
+        
         arcTree = dict([(str((a,b)),
                          {"name":str((a,b)),
                           #"size":float(nodes[b]["fn"] - nodes[a]["fn"]),
                           #"size":10,
                           "size":1 + 100*float(nodes[b]["fn"] - nodes[a]["fn"]),
+                          "type":get_type(a,b),
+                          "weight":1.0
                           }) for (a,b) in arcs])
-        
-        for c,m,d,u in self.shier:
-            
+                                 
+        for (c,m,d,u),w in zip(self.shier,self.swts):
+                        
             clu = str((min(c,m),max(c,m)))
             m_u = str((m,u))
             d_m = str((d,m))
-            d_u = str((d,u))            
+            d_u = str((d,u))
+            
+            arcTree[clu]["weight"] = arcTree[m_u]["weight"] = arcTree[d_m]["weight"] = float(w)
             
             assert not arcTree.has_key((d_u))
             arcTree[d_u] = {
                 "name":d_u,
                 "children": [arcTree[clu],arcTree[d_m],arcTree[m_u]],
                 #"size":float(nodes[u]["fn"] - nodes[d]["fn"]),
-                
+                "type":get_type(d,u),
+                "weight":1.0,                
                 }
             del arcTree[m_u]
             del arcTree[d_m]
@@ -229,8 +254,11 @@ class ReebgraphModel(QObject):
             
         
         for k,v in arcTree.iteritems():
-            arcTree = {"name":str(k),"children":v["children"]}
-            break;                                                  
+            arcTree = {"name":str(k),
+                       "children":v["children"],
+                       "type":v["type"]
+                       }
+            break
         
         return json.dumps(arcTree)
 
