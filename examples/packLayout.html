@@ -3,17 +3,8 @@
 <style>
 
 circle {
-  fill: rgb(131, 131, 131);
   stroke: rgb(31,31, 31);
   stroke-width: 1px;
-}
-
-.minimum circle {
-  fill: rgb(31, 119, 180);
-}
-
-.maximum circle {
-  fill: rgb(225, 10,10);
 }
 
 text {
@@ -41,7 +32,31 @@ text {
 
 
 </style>
-<svg width="500" height="500"></svg>
+<svg width="500" height="500">
+<defs>
+  <pattern id="min-sad-not-selected" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse" >
+  <rect width="10" height="10" style="stroke: none; fill: #8f8fff ;opacity:.85" /> </pattern>
+
+  <pattern id="sad-max-not-selected" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse" >
+  <rect width="10" height="10" style="stroke: none; fill: #ff8f8f;opacity:.85" /> </pattern>
+
+  <pattern id="def-not-selected" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse" >
+  <rect width="10" height="10" style="stroke: none; fill: #cfcfcf;opacity:.85" /> </pattern>
+
+  <pattern id="sad-max-selected" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse" >
+  <rect width="10" height="10" fill="url(#sad-max-not-selected)" /> 
+  <line x1="0" y1="0" x2="10" y2="10" style="stroke:#0f0f0f;stroke-width:1" /></pattern>
+
+  <pattern id="min-sad-selected" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse" >
+  <rect width="10" height="10" fill="url(#min-sad-not-selected)" /> 
+  <line x1="0" y1="0" x2="10" y2="10" style="stroke:#0f0f0f;stroke-width:1" /></pattern>
+
+  <pattern id="def-selected" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse" > 
+  <rect width="10" height="10" fill="url(#def-not-selected)" /> 
+  <line x1="0" y1="0" x2="10" y2="10" style="stroke:#0f0f0f;stroke-width:1" />  </pattern> 
+
+</defs>
+</svg>
 <br>
 <div class="slidecontainer">
 <input type="range" min="0" max="500" value="0" class="slider" id="simpSlider"> 
@@ -64,6 +79,18 @@ var pack = d3.pack()
 
 function setup(root) {
   //if (error) throw error;
+  
+  function fillfunc(d){
+    var n= d.data.type == "min-sad" ? "min-sad-not-selected" : (d.data.type == "sad-max" ? "sad-max-not-selected": "def-not-selected");
+    if(d.data.selected == true) n = d.data.type == "min-sad" ? "min-sad-selected" : (d.data.type == "sad-max" ? "sad-max-selected": "def-selected")
+    return "url(#"+n+")";
+  }
+  
+  function selectFunc(d){  
+    d.data.selected = !(d.data.selected == true);
+    var v = fillfunc(d)
+    d3.select(this).attr("fill",v);
+  }
 
   root = d3.hierarchy(root)
       .sum(function(d) { return d.size; })
@@ -72,11 +99,11 @@ function setup(root) {
   var node = g.selectAll(".node")
     .data(pack(root).descendants())
     .enter().append("g")
-      .attr("class", function(d) { return d.data.type == "min-sad" ? "minimum node" : (d.data.type == "sad-max" ? "maximum node": "node") ; })
       .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-      .attr("fill-opacity",0.35)
       .attr("stroke-opacity",1.0)
-      .on("click",function(d){console.log(d.data.name);})
+      .attr("fill-opacity",1)
+      .attr("fill",fillfunc)
+      .on("click",selectFunc)
 
   node.append("title")
       .text(function(d) { return d.data.name + "\n" + format(d.value); });
@@ -99,7 +126,7 @@ document.getElementById("simpSlider").oninput = function() {
 
     node.transition()
         .duration(750)
-        .attr("fill-opacity", function(d) { return (d.data.weight < t) ? 0: 0.35;})
+        .attr("fill-opacity", function(d) { return (d.data.weight < t) ? 0: 1;})
         .attr("stroke-opacity", function(d) {return (d.data.weight < t) ? 0: 1;})
         .on("end",function(d){if(d.data.weight < t) d3.select(this).attr("display","none");})
         .on("start",function(d){if(!(d.data.weight < t)) d3.select(this).attr("display","block");})
