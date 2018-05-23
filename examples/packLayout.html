@@ -88,8 +88,8 @@ function setup(root) {
   
   function selectFunc(d){  
     d.data.selected = !(d.data.selected == true);
-    var v = fillfunc(d)
-    d3.select(this).attr("fill",v);
+    d3.select(this).attr("fill",fillfunc(d));
+    rgm.selectArc(d.data.name,d.data.selected);
   }
 
   root = d3.hierarchy(root)
