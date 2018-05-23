@@ -109,38 +109,46 @@ class ReebgraphModel(QObject):
         
         nodes,arcs = self.nodes,self.arcs
         
+        arcTreeTD = {}
         
-        arcTree = dict([(str((a,b)),
-                         {"name":str((a,b)),
-                          #"size":float(nodes[b]["fn"] - nodes[a]["fn"]),
-                          #"size":10,
-                          "size":1 + 100*float(nodes[b]["fn"] - nodes[a]["fn"]),
-                          "type":self.get_type(a,b),
-                          "weight":1.0
-                          }) for (a,b) in arcs])
+        for a,b in self.arcs:
+            a,b = int(a),int(b)
+                        
+            arcTreeTD[str((a,b))] = {
+                "name":str((a,b)),
+                #"size":float(nodes[b]["fn"] - nodes[a]["fn"]),
+                #"size":10,
+                "size":1 + 100*float(self.nodes[b]["fn"] - self.nodes[a]["fn"]),
+                "type":self.get_type(a,b),
+                "weight":1.0,
+                "selected":self.arcTree[(a,b)]["selected"],
+                }
+        
+        
                                  
         for (c,m,d,u),w in zip(self.shier,self.swts):
                         
             clu = str((min(c,m),max(c,m))); m_u = str((m,u));  d_m = str((d,m)); d_u = str((d,u))
             
-            arcTree[clu]["weight"] = arcTree[m_u]["weight"] = arcTree[d_m]["weight"] = float(w)
+            arcTreeTD[clu]["weight"] = arcTreeTD[m_u]["weight"] = arcTreeTD[d_m]["weight"] = float(w)
             
-            assert not arcTree.has_key((d_u))
-            arcTree[d_u] = {
+            assert not arcTreeTD.has_key((d_u))
+            arcTreeTD[d_u] = {
                 "name":d_u,
-                "children": [arcTree[clu],arcTree[d_m],arcTree[m_u]],
+                "children": [arcTreeTD[clu],arcTreeTD[d_m],arcTreeTD[m_u]],
                 #"size":float(nodes[u]["fn"] - nodes[d]["fn"]),
                 "type":self.get_type(d,u),
                 "weight":1.0,                
+                "selected":self.arcTree[int(d),int(u)]["selected"],
                 }
             
-            del arcTree[m_u]; del arcTree[d_m]; del arcTree[clu]
+            del arcTreeTD[m_u]; del arcTreeTD[d_m]; del arcTreeTD[clu]
                                 
-        for k,v in arcTree.iteritems():
-            arcTree = v
+        for k,v in arcTreeTD.iteritems():
+            arcTreeTD = v
             break
         
-        return json.dumps(arcTree)
+        return json.dumps(arcTreeTD)
 
     @pyqtSlot(str,bool,result=bool)
     def selectArc(self,aname,selected):
