@@ -176,7 +176,7 @@ class WebViewWindow(QtGui.QWidget):
         if rgm != None:
             self.rgm = rgm        
                         
-        self.view.setUrl(QUrl("packLayout.html"))
+        self.view.setUrl(QUrl("force.html"))
 
     def setupInspector(self):
         page = self.view.page()
@@ -210,6 +210,11 @@ class ReebgraphModel(QObject):
         rng   = [float(nodes["fn"].min()),float(nodes["fn"].max())]                
         nodes = [ {"id":i, "name":str(n["id"]), "fn":float(n["fn"]),"group":int(n["type"]) } for i,n in enumerate(nodes)]
         links = [ {"source":arc[0], "target":arc[1]} for arc in arcs ]
+        
+        for (a,b),w in zip(self.sorder,self.swts):
+            nodes[a]["weight"] = float(w);
+            nodes[b]["weight"] = float(w);
+
         
         return json.dumps({"nodes":nodes,"links":links,"range":rng})
 

@@ -4,7 +4,6 @@
 
 .links line {
   stroke: #999;
-  stroke-opacity: 0.6;
 }
 
 .nodes circle {
@@ -12,10 +11,34 @@
   stroke-width: 1.5px;
 }
 
+.slidecontainer {
+    width: 800px;
+}
+
+.slider {
+/*     -webkit-appearance: none; */
+    width: 70%;
+    margin-left: auto !important;
+    margin-right: auto !important;
+/*    height: 15px;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;*/
+}
+
+
+
 </style>
 
-<svg width="960" height="600"></svg>
+<svg width="800" height="500"></svg>
 <br>
+<div class="slidecontainer">
+<input type="range" min="0" max="500" value="0" class="slider" id="simpSlider"> 
+Value: <span id="simpValue">0%</span>
+</div>
 <input type="button" onclick="location.href='treemap.html';" value="Feature Treemap" />
 <input type="button" onclick="location.href='packLayout.html';" value="Feature CircleMap" />
 
@@ -33,8 +56,6 @@ var simulation = d3.forceSimulation()
     .force("charge", d3.forceManyBody())
     .force("center", d3.forceCenter(width / 2, height / 2));
     
-var root = JSON.parse(rgm.json())
-
 function setup(graph) {
 //   if (error) throw error;
 
@@ -43,7 +64,9 @@ function setup(graph) {
     .selectAll("line")
     .data(graph.links)
     .enter().append("line")
-      .attr("stroke-width", function(d) { return Math.sqrt(d.value); });
+      .attr("stroke-width", function(d) { return Math.sqrt(d.value); })
+      .attr("stroke-opacity",0.6);
+
 
   var node = svg.append("g")
       .attr("class", "nodes")
@@ -66,7 +89,7 @@ function setup(graph) {
 
   simulation.force("link")
       .links(graph.links)
-      .distance(function(d) {l = Math.abs(d.source.fn - d.target.fn); console.log(l); return 50*l;});
+      .distance(function(d) {l = Math.abs(d.source.fn - d.target.fn); return 50*l;});
 
   simulation.force('y', d3.forceY().y(function(d) {
     return height - d.fn*50;
@@ -83,6 +106,8 @@ function setup(graph) {
         .attr("cx", function(d) { return d.x; })
         .attr("cy", function(d) { return d.y; });
   }
+  
+  return {node:node,link:link}
 }
 
 function nrmfn(d) {
@@ -90,7 +115,7 @@ function nrmfn(d) {
     //return d.y;
 }
 
-setup(root);
+var graph = setup(JSON.parse(rgm.json()));
 
 function dragstarted(d) {
   if (!d3.event.active) simulation.alphaTarget(0.3).restart();
@@ -108,5 +133,24 @@ function dragended(d) {
   d.fx = null;
   d.fy = null;
 }
+
+document.getElementById("simpSlider").oninput = function() {
+
+    var t = this.value/500;
+
+    graph.node.transition()
+        .duration(750)
+        .attr("fill-opacity", function(d) { if(d.weight < t) return 0; return 1.0;})
+        .attr("stroke-opacity", function(d) {if(d.weight < t) return 0; return 1.0;})
+
+//     graph.link.transition()
+//         .duration(750)
+//         .attr("fill-opacity", function(d)  { if(d.source.weight < t && d.target.weight < t) return 0; return 1.0;})
+//         .attr("stroke-opacity", function(d){ if(d.source.weight < t && d.target.weight < t) return 0; return 1.0;})
+        
+    document.getElementById("simpValue").innerHTML=this.value/5+"%";
+
+};
+
 
 </script>
