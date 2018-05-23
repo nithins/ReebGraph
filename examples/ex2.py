@@ -139,7 +139,15 @@ class VolumeRenderPipeine:
         istyle = vtk.vtkInteractorStyleTrackballCamera()
         self.iren = self.renderWindow.GetInteractor()
         self.iren.SetInteractorStyle(istyle)
-        self.iren.Initialize()       
+        self.iren.Initialize()
+
+        self.imageData = imageData        
+        
+        
+    def reloadData(self):
+        self.imageData.Modified()
+        self.imageData.Update()
+        self.renderWindow.Render()       
 
 
 class ReebgraphRenderPipeline:

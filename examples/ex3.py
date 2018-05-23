@@ -18,11 +18,12 @@ class ReebgraphModel(QObject):
     Also provides jsonified data for webview
     """
     
-
+    dsChanged = pyqtSignal()    
 
     def __init__(self, dataset, parent = None):
         QObject.__init__(self, parent)
-        self.ds  = dataset        
+        self.ods = np.copy(dataset)
+        self.ds  = dataset
         self.nodes,self.arcs,self.arcmap  = pyrg.computeCT_Grid3D(self.ds)
         self.sorder,self.swts,self.shier  = pyrg.simplifyCT_Pers(self.nodes,self.arcs)
         self.arcTree = self.make_arcTree()        
@@ -30,7 +31,6 @@ class ReebgraphModel(QObject):
     def get_type(self,a,b):
         """
         Returns the type of arc a,b. min-sad, sad-sad, sad-max. 
-        TODO: min-max is also returned as sad-sad
         """
         return ("min" if self.nodes[a]["type"] == 1 else "sad") +"-" + ("max" if self.nodes[b]["type"] == 2 else "sad")
 
@@ -67,6 +67,22 @@ class ReebgraphModel(QObject):
         
         return arcTree
 
+    def adjust_ds(self):
+                    
+        arcRemap = np.zeros(len(self.arcs),np.float32)
+        
+        for ano in range(len(self.arcs)):
+            a,b = tuple(map(int,self.arcs[ano]))
+            
+            n  = self.arcTree[a,b]
+            s  = n["selected"]
+            while n["par"] != None:
+                n  = self.arcTree[n["par"]]
+                s |= n["selected"]
+            arcRemap[ano] = s
+            
+        self.ds[:] = self.ods*arcRemap[self.arcmap]
+        self.dsChanged.emit()
 
 
     
@@ -131,6 +147,7 @@ class ReebgraphModel(QObject):
         try:
             a,b = tuple(map(int,aname[1:-1].split(",")))
             self.arcTree[a,b]["selected"] = selected
+            self.adjust_ds()
         except Exception as e:
             print "Selection Failed aname=",aname,"e=",e
             return False
@@ -228,13 +245,16 @@ class MainWindow(QtGui.QMainWindow):
         
         self.show()
         
-        self.webview.refresh(ReebgraphModel(self.dataset,self))
+        self.rgm = ReebgraphModel(self.dataset,self)
+        
+        self.webview.refresh(self.rgm)
         
         ## Create Volume Render pipeline
-        self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow()) 
-         
+        self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow())
         
+        self.rgm.dsChanged.connect(self.volumeRenderPipeline.reloadData)
 
+         
 
 def main():
     app = QtGui.QApplication(sys.argv)
