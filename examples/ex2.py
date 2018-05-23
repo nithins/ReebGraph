@@ -7,7 +7,7 @@ from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import numpy as np
 import pyrg
 
-def create_dataset():
+def create_3gauss():
     """
     make a dataset with 3 gaussian features
     """
@@ -113,17 +113,33 @@ class VolumeRenderPipeine:
         volume.SetMapper(volumeMapper)
         volume.SetProperty(volumeProperty)
         
+        # Add a bounding box around the dataset
+        bbFilter = vtk.vtkOutlineFilter()
+        bbFilter.SetInputConnection(imageData.GetProducerPort())
+
+        bbMapper = vtk.vtkDataSetMapper()
+        bbMapper.SetInputConnection(bbFilter.GetOutputPort())
+
+        bbActor = vtk.vtkActor()
+        bbActor.GetProperty().EdgeVisibilityOn()
+        bbActor.GetProperty().SetEdgeColor(1,1,1)
+        bbActor.SetMapper(bbMapper)
+
+        
         # add a renderer to the widget
         self.ren = vtk.vtkRenderer()
         self.renderWindow.AddRenderer(self.ren)
         
         # add a volume and ResetCamera
         self.ren.AddVolume(volume) 
+        self.ren.AddActor(bbActor)
         self.ren.ResetCamera()
         
         #prepare interactor
+        istyle = vtk.vtkInteractorStyleTrackballCamera()
         self.iren = self.renderWindow.GetInteractor()
-        self.iren.Initialize()
+        self.iren.SetInteractorStyle(istyle)
+        self.iren.Initialize()       
 
 
 class ReebgraphRenderPipeline:
@@ -169,7 +185,7 @@ class MainWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self, parent)
         
         # Create Dataset
-        self.dataset = create_dataset();   
+        self.dataset = create_3gauss();   
         
         # Compute Reeb graph
         self.rg = pyrg.computeCT_Grid3D(self.dataset)        
