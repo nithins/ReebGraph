@@ -63,7 +63,7 @@ def read_vti(f):
     arr = nps.vtk_to_numpy(imageData.GetPointData().GetArray(0))
     arr = np.array(arr,np.float32).reshape(dim)
     arr = (arr - arr.min())/(arr.max() - arr.min())
-    arr = arr[::4,::4,::4].copy()
+    arr = arr[::8,::8,::8].copy()
     
     print arr.shape
    

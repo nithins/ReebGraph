@@ -9,7 +9,7 @@ import numpy as np
 import pyrg
 import vtk
 
-from ex2 import create_3gauss,VolumeRenderPipeine
+from ex2 import create_3gauss,VolumeRenderPipeine,read_vti
 
 
 class ReebgraphModel(QObject):
@@ -93,7 +93,7 @@ class ReebgraphModel(QObject):
         nodes,arcs = self.nodes,self.arcs
 
         rng   = [float(nodes["fn"].min()),float(nodes["fn"].max())]                
-        nodes = [ {"id":i, "name":str(n["id"]), "fn":float(n["fn"]),"group":int(n["type"]) } for i,n in enumerate(nodes)]
+        nodes = [ {"id":i, "name":str(n["id"]), "fn":float(n["fn"]),"group":int(n["type"]), "weight":1.0 } for i,n in enumerate(nodes)]
         links = [ {"source":arc[0], "target":arc[1]} for arc in arcs ]
         
         for (a,b),w in zip(self.sorder,self.swts):
@@ -228,11 +228,11 @@ class WebViewWindow(QtGui.QWidget):
 class MainWindow(QtGui.QMainWindow):
     
  
-    def __init__(self, parent = None):
+    def __init__(self, parent = None, dataset=None):
         QtGui.QMainWindow.__init__(self, parent)
         
         # Create Dataset
-        self.dataset = create_3gauss();   
+        self.dataset = create_3gauss() if dataset is None else dataset   
                         
         # Create UI        
         self.splitter = QtGui.QSplitter(self)
@@ -265,9 +265,21 @@ class MainWindow(QtGui.QMainWindow):
          
 
 def main():
+    dataset = None
+    
+    if len(sys.argv) >1:
+        fn = sys.argv[1]
+        
+        if fn.endswith(".vti"):
+            dataset = read_vti(fn)
+            np.savez(fn.replace(".vti",".npz"),dataset)
+            
+        if fn.endswith(".npz"):
+            dataset = np.load(fn)["arr_0"]
+
     app = QtGui.QApplication(sys.argv)
  
-    window = MainWindow()
+    window = MainWindow(dataset=dataset)
  
     sys.exit(app.exec_())
     
