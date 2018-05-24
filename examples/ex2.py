@@ -47,6 +47,27 @@ def create_3gauss():
     #data_matrix[45:74, 45:74, 45:74] = 150
 
     #return data_matrix
+    
+def read_vti(f):
+    
+    from vtk.util import numpy_support as nps
+    
+    reader = vtk.vtkXMLImageDataReader()
+    reader.SetFileName(f);
+    reader.Update();   
+    
+    
+    imageData = reader.GetOutput()
+    
+    dim = tuple(reversed(imageData.GetDimensions()))    
+    arr = nps.vtk_to_numpy(imageData.GetPointData().GetArray(0))
+    arr = np.array(arr,np.float32).reshape(dim)
+    arr = (arr - arr.min())/(arr.max() - arr.min())
+    arr = arr[::4,::4,::4].copy()
+    
+    print arr.shape
+   
+    return arr
 
 
 
@@ -115,7 +136,7 @@ class VolumeRenderPipeine:
         
         # Add a bounding box around the dataset
         bbFilter = vtk.vtkOutlineFilter()
-        bbFilter.SetInputConnection(imageData.GetProducerPort())
+        bbFilter.SetInputData(imageData) if vtk.VTK_MAJOR_VERSION > 5 else bbFilter.SetInputConnection(imageData.GetProducerPort())
 
         bbMapper = vtk.vtkDataSetMapper()
         bbMapper.SetInputConnection(bbFilter.GetOutputPort())
@@ -141,12 +162,14 @@ class VolumeRenderPipeine:
         self.iren.SetInteractorStyle(istyle)
         self.iren.Initialize()
 
-        self.imageData = imageData        
+        self.imageData = imageData
+        self.volumeMapper = volumeMapper
         
         
     def reloadData(self):
         self.imageData.Modified()
-        self.imageData.Update()
+        #self.imageData.Update()
+        self.volumeMapper.Update()
         self.renderWindow.Render()       
 
 
@@ -189,11 +212,11 @@ class ReebgraphRenderPipeline:
  
 class MainWindow(QtGui.QMainWindow):
  
-    def __init__(self, parent = None):
+    def __init__(self, parent = None, dataset=None):
         QtGui.QMainWindow.__init__(self, parent)
         
         # Create Dataset
-        self.dataset = create_3gauss();   
+        self.dataset = create_3gauss() if dataset is None else dataset
         
         # Compute Reeb graph
         self.rg = pyrg.computeCT_Grid3D(self.dataset)        
@@ -226,8 +249,15 @@ class MainWindow(QtGui.QMainWindow):
  
 if __name__ == "__main__":
  
+    
+    dataset = None
+    
+    if len(sys.argv) >1:
+        dataset = read_vti(sys.argv[1])
+
     app = QtGui.QApplication(sys.argv)
  
-    window = MainWindow()
+    window = MainWindow(dataset=dataset)
  
     sys.exit(app.exec_())
+        
