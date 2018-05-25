@@ -92,8 +92,9 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
     std::vector<int64_t> arcs;
 	py::array_t<uint32_t> arcMap;
 	arcMap.resize({Z,Y,X});
+    auto arcMapPtr = arcMap.mutable_data();
 
-	mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMap.mutable_data());
+    mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMapPtr);
 
     std::map<int64_t,int64_t> idToNodeNum;
 
@@ -103,18 +104,81 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
     for(auto &a: arcs)
         a = idToNodeNum[a];
 
+    typedef std::pair<int64_t,int64_t> arc_t;
 
     {
+
+        std::vector<arc_t> oldArcNumToNodeIdPairs;
+        for(int i = 0 ; i < arcs.size(); i+=2)
+            oldArcNumToNodeIdPairs.push_back(std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]]));
+
+
         contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
+
+
+        std::map<arc_t,int64_t> nodeIdPairsToNewArcNum;
+        for(int i = 0 ; i < arcs.size(); i+=2)
+            nodeIdPairsToNewArcNum[std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]])] = i/2;
+
+
+        for(int i = 0 ; i < X*Y*Z; ++i)
+            arcMapPtr[i] = nodeIdPairsToNewArcNum[oldArcNumToNodeIdPairs[arcMapPtr[i]]];
+
+    }
+
+    {
 
         std::vector<float>    wts;
         std::vector<uint32_t> orderPairs;
         std::vector<uint32_t> featureHierarchy;
 
+        std::vector<arc_t> oldArcs;
+        for(int i = 0 ; i < arcs.size(); i+=2)
+            oldArcs.push_back(std::make_pair(arcs[i],arcs[i+1]));
+
+        std::map<arc_t,arc_t> arcParent;
+        for(int i = 0 ; i < oldArcs.size(); ++i)
+            arcParent[oldArcs[i]] = arc_t(-1,-1);
+
+
         // Note: Outputs the surviging arcs into the same array.. its safe
         contourtree::simplifyPers(nodefns,nodeTypes,arcs,
                                  orderPairs,wts,featureHierarchy,
                                  arcs,-1,0.01);
+
+        for(int i = 0 ; i < featureHierarchy.size(); i+=5) {
+            auto t = featureHierarchy[i+0];
+            auto c = featureHierarchy[i+1];
+            auto m = featureHierarchy[i+2];
+            auto d = featureHierarchy[i+3];
+            auto u = featureHierarchy[i+4];
+
+            auto da1 = (t == 0)? (arc_t(c,m)):(arc_t(m,c));
+            auto da2 = arc_t(d,m);
+            auto da3 = arc_t(m,u);
+            auto na = arc_t(d,u);
+
+            ENSURES(arcParent.count(da1) == 1 && arcParent[da1] == arc_t(-1,-1) &&
+                    arcParent.count(da2) == 1 && arcParent[da1] == arc_t(-1,-1) &&
+                    arcParent.count(da3) == 1 && arcParent[da1] == arc_t(-1,-1) &&
+                    arcParent.count(na) == 0 );
+
+            arcParent[da1] = na;
+            arcParent[da2] = na;
+            arcParent[da3] = na;
+            arcParent[na] = arc_t(-1,-1);
+        }
+
+        std::map<arc_t,int64_t> newArcToNum;
+        for(int i = 0 ; i < arcs.size(); i+=2 )
+            newArcToNum[std::make_pair(arcs[i],arcs[i+1])] = i/2;
+
+        for(int i = 0 ; i < X*Y*Z; ++i) {
+            auto arc = oldArcs[arcMapPtr[i]];
+            while(arcParent.at(arc) != arc_t(-1,-1)) {arc = arcParent.at(arc);}
+            arcMapPtr[i] = newArcToNum.at(arc);
+        }
+
         sqeezeCT(nodeids,nodefns,nodeTypes,arcs);
 
     }
