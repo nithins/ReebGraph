@@ -313,6 +313,39 @@ inline std::vector<std::string> split(const std::string &s, const char* delim)
 	std::vector<std::string> v; split(s, delim, v); return v;
 }
 
+/*---------------------------------------------------------------------------*/
+
+/// \brief Replace all instances of v with nv in vec \returns number of replacements
+template<typename T> inline size_t replaceInstances(std::vector<T> & vec, const T& v, const T& nv )
+{
+    size_t ct = 0;
+    for(auto &val : vec)
+        if(val == v) {val=nv;ct++;}
+    return ct;
+}
+
+/*---------------------------------------------------------------------------*/
+/// \brief count all instances of v in vec \returns number of instances
+template<typename T> inline size_t countInstances(const std::vector<T> & vec, const T& v)
+{
+    size_t ct = 0;
+    for(auto &val : vec)
+        if(val == v) ct++;
+    return ct;
+}
+
+/*---------------------------------------------------------------------------*/
+/// \brief remove all instances of v in vec \returns number deletions
+
+template<typename T> inline size_t deleteInstances(std::vector<T> &vec, const T & v) {
+    size_t t = 0,ct=0;
+    for (int i = 0; i < vec.size(); ++i)
+        if (vec[i] != v) vec[t++] = vec[i]; else ct++;
+    vec.resize(t);
+    return ct;
+}
+
+
 }// namespace utl
 /*===========================================================================*/
 

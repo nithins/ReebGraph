@@ -107,17 +107,6 @@ bool SimplifyCT::compare(uint32_t b1, uint32_t b2) const {
     return (branches[b2].from > branches[b1].from);
 }
 
-template<typename T> void removeInstances(std::vector<T> &vec, const T & v) {
-	size_t t = 0;
-
-	for (int i = 0; i < vec.size(); ++i) {
-		if (vec[i] != v)
-			vec[t++] = vec[i];
-	}
-
-	vec.resize(t);
-}
-
 void SimplifyCT::removeArc(uint32_t ano) {
     Branch br = branches[ano];
     uint32_t from = br.from;
@@ -132,8 +121,8 @@ void SimplifyCT::removeArc(uint32_t ano) {
         mergedVertex = from;
     }
 
-	removeInstances(nodes[from].next, ano);
-	removeInstances(nodes[to].prev, ano);
+    utl::deleteInstances(nodes[from].next, ano);
+    utl::deleteInstances(nodes[to].prev, ano);
     removed[ano] = true;
 
     vArray[mergedVertex].push_back(ano);

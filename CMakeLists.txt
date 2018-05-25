@@ -20,6 +20,9 @@ TopologicalFeatures.cpp
 SimplifyCT.hpp
 SimplifyCT.cpp
 
+SimplifyCT2.hpp
+SimplifyCT2.cpp
+
 SimFunction.hpp
 ScalarFunction.hpp
 

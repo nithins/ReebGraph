@@ -11,6 +11,7 @@
 #include "ContourTreeData.hpp"
 #include "ContourTreeData.hpp"
 #include "SimplifyCT.hpp"
+#include "SimplifyCT2.hpp"
 #include "Persistence.hpp"
 
 using namespace contourtree;
@@ -87,15 +88,38 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
     std::vector<int64_t> nodeids;
     std::vector<scalar_t> nodefns;
     std::vector<char> nodeTypes;
+
     std::vector<int64_t> arcs;
 	py::array_t<uint32_t> arcMap;
 	arcMap.resize({Z,Y,X});
 
 	mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMap.mutable_data());
 
-    std::vector<py_node> nodes(nodeids.size());
-
     std::map<int64_t,int64_t> idToNodeNum;
+
+    for(int i = 0; i < nodeids.size(); ++i )
+        idToNodeNum[nodeids[i]] = i;
+
+    for(auto &a: arcs)
+        a = idToNodeNum[a];
+
+
+    {
+        contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
+
+        std::vector<float>    wts;
+        std::vector<uint32_t> orderPairs;
+        std::vector<uint32_t> featureHierarchy;
+
+        // Note: Outputs the surviging arcs into the same array.. its safe
+        contourtree::simplifyPers(nodefns,nodeTypes,arcs,
+                                 orderPairs,wts,featureHierarchy,
+                                 arcs,-1,0.01);
+        sqeezeCT(nodeids,nodefns,nodeTypes,arcs);
+
+    }
+
+    std::vector<py_node> nodes(nodeids.size());
 
     for(int i = 0; i < nodes.size(); ++i ) {
         int id = nodeids[i];
@@ -105,19 +129,14 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
         nodes[i].crd.z = (id/(X*Y))%Z;
         nodes[i].fn = nodefns[i];
         nodes[i].type = nodeTypes[i];
-        idToNodeNum[id] = i;
     }
 
-    for(auto &a: arcs) {
-        a = idToNodeNum[a];
-    }
 
     std::cout << SVAR(arcMap.size()) << std::endl;
 
     auto nodes_   = py::array(nodes.size(),nodes.data());
     auto arcs_    = py::array(arcs.size(),arcs.data());
     arcs_.resize({arcs.size()/2,size_t(2)},true);
-
 
 	return py::make_tuple(nodes_,arcs_,arcMap);
 }
@@ -135,43 +154,29 @@ py::tuple simplifyCT_Pers(py::array_t<py_node> &nodes_, py::array_t<int64_t> &ar
 		nodeTypes.push_back(nodes_.at(i).type);
 	}
 
-	for(int i = 0 ; i < arcs_.shape(0); ++i) {
-		arcs.push_back(nodeids[arcs_.at(i,0)]);
-		arcs.push_back(nodeids[arcs_.at(i,1)]);
-	}
+    for(int i = 0 ; i < arcs_.shape(0); ++i) {
+        arcs.push_back(arcs_.at(i,0));
+        arcs.push_back(arcs_.at(i,1));
+    }
 
-	ContourTreeData ctdata;
-	ctdata.loadData(nodeids,nodefns,nodeTypes,arcs);
-
-	SimplifyCT sim;
-	sim.setInput(&ctdata);
-
-	Persistence simfn(ctdata);
-	sim.simplify(&simfn);
-
-	std::vector<uint32_t> order;
-	std::vector<float>   wts;
-
-	sim.outputOrder(order,wts);
-
+    std::vector<float>   wts;
     std::vector<uint32_t> orderPairs;
-    for(int i = 0 ;i < order.size(); ++i) {
-        orderPairs.push_back(sim.branches[order[i]].from);
-        orderPairs.push_back(sim.branches[order[i]].to);
-    }
-
     std::vector<uint32_t> featureHierarchy;
-    {
+    std::vector<int64_t>  sarcs;
+    contourtree::simplifyPers(nodefns,nodeTypes,arcs,orderPairs,wts,featureHierarchy,sarcs);
 
-        SimplifyCT sim;
-        sim.setInput(&ctdata);
+    ENSURES(sarcs.size() == 2) <<SVAR(sarcs.size());
+    ENSURES(wts.size() == orderPairs.size()/2 && wts.size() == (featureHierarchy.size()/5))
+            <<SVAR(wts.size()) << SVAR(orderPairs.size()) << SVAR(featureHierarchy.size());
 
-        sim.computeFeatureHierarchy(order,featureHierarchy);
-    }
+    wts.push_back(1.0);
+    orderPairs.push_back(sarcs.front());
+    orderPairs.push_back(sarcs.back());
 
-    return py::make_tuple(py::array({order.size(),(size_t)2},orderPairs.data()),
+
+    return py::make_tuple(py::array({wts.size(),(size_t)2},orderPairs.data()),
                           py::array(wts.size(),wts.data()),
-                          py::array({order.size()-1,(size_t)4},featureHierarchy.data())
+                          py::array({wts.size()-1,(size_t)5},featureHierarchy.data())
                           );
 
 }

@@ -25,6 +25,9 @@ class ReebgraphModel(QObject):
         self.ods = np.copy(dataset)
         self.ds  = dataset
         self.nodes,self.arcs,self.arcmap  = pyrg.computeCT_Grid3D(self.ds)
+        print len(self.nodes)
+        print len(self.arcs)
+        
         self.sorder,self.swts,self.shier  = pyrg.simplifyCT_Pers(self.nodes,self.arcs)
         self.arcTree = self.make_arcTree()        
 
@@ -48,7 +51,7 @@ class ReebgraphModel(QObject):
                 "selected":False,
                 }
                                  
-        for (c,m,a,b),w in zip(self.shier,self.swts):
+        for (t,c,m,a,b),w in zip(self.shier,self.swts):
             
             arcTree[(a,b)] = {
                 "name":str((a,b)),
@@ -59,7 +62,7 @@ class ReebgraphModel(QObject):
                 "selected":False,
                 }
 
-            clu = (min(c,m),max(c,m))
+            clu = (c,m) if t == 0 else (m,c)
             
             arcTree[clu]["par"] = (a,b); arcTree[clu]["weight"] = float(w)
             arcTree[m,b]["par"] = (a,b); arcTree[m,b]["weight"] = float(w)
@@ -126,9 +129,9 @@ class ReebgraphModel(QObject):
         
         
                                  
-        for (c,m,d,u),w in zip(self.shier,self.swts):
+        for (t,c,m,d,u),w in zip(self.shier,self.swts):
                         
-            clu = str((min(c,m),max(c,m))); m_u = str((m,u));  d_m = str((d,m)); d_u = str((d,u))
+            clu = str((c,m) if t == 0 else (m,c)); m_u = str((m,u));  d_m = str((d,m)); d_u = str((d,u))
             
             arcTreeTD[clu]["weight"] = arcTreeTD[m_u]["weight"] = arcTreeTD[d_m]["weight"] = float(w)
             
@@ -207,7 +210,7 @@ class WebViewWindow(QtGui.QWidget):
         if rgm != None:
             self.rgm = rgm        
                         
-        self.view.setUrl(QUrl("packLayout.html"))
+        self.view.setUrl(QUrl("force2.html"))
 
     def setupInspector(self):
         page = self.view.page()

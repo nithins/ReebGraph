@@ -33,23 +33,24 @@ def make_function():
 
 
 
+def main():
+    import sys
+    dataset = None
     
-
-if __name__=="__main__":
-    #make_function()
+    if len(sys.argv) >1:
+        fn = sys.argv[1]
+        
+        #if fn.endswith(".vti"):
+            #dataset = read_vti(fn)
+            #np.savez(fn.replace(".vti",".npz"),dataset)
+            
+        if fn.endswith(".npz"):
+            dataset = np.load(fn)["arr_0"]
+    else:
+        dataset = make_function()
+            
     
-    #g  = rg.Grid3D((30,30,30))
-    #a  = np.array(g, copy = False)    
-    #a[:] = make_function()
-    
-    #mt =  rg.MergeTree()
-    #mt.computeContourTree(g)
-    #s,w = mt.genPersistenceHierarchy()
-    
-    #print s
-    #print w
-    
-    nodes,arcs,amap =  rg.computeCT_Grid3D(make_function())
+    nodes,arcs,amap =  rg.computeCT_Grid3D(dataset)
     aseq,awts,fh  = rg.simplifyCT_Pers(nodes,arcs)
 
     
@@ -59,3 +60,9 @@ if __name__=="__main__":
     print aseq
     print awts
     print fh
+
+
+    
+
+if __name__=="__main__":
+    main()
