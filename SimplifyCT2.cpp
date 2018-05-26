@@ -133,6 +133,317 @@ std::vector<int64_t> contourtree::splitMonkeysAndNazis(
     return oldArcNumToNewArcNum;
 }
 
+/// \brief the generic simplification kernel
+struct contourTreeSimplificationKernel {
+
+    /// \brief getFeature weight
+    std::function<scalar_t(arc_t)>   getFeatureWeight;
+
+    /// \brief called for book keepingafter every cancellation the.
+    ///       the cancelled arc and the newly inserted arc are given as parameters.
+    std::function<void(arc_t,arc_t)> doneCancellation;
+
+    /// \brief should return true if cancellation should stop before the given weight
+    std::function<bool(arc_t)>       stopCancellation;
+
+
+    /// \brief the actual cancellation procedure
+    /// \returns the set of arcs that survive after cancellation
+    std::vector<int64_t>  operator()
+    (const std::vector<char>  &nodeType,const std::vector<int64_t>   &arcs)
+    {
+
+
+        size_t numNodes = nodeType.size();
+        size_t numArcs  = arcs.size()/2;
+        ENSURES(numArcs +1 == numNodes);
+
+
+        // Form a directed graph
+        vector<vector<int64_t>> nodeUp(nodeType.size());
+        vector<vector<int64_t>> nodeDown(nodeType.size());
+        for(int i = 0 ; i < arcs.size(); i+= 2){
+            auto a = arcs[i];
+            auto b = arcs[i+1];
+
+            nodeUp[a].push_back(b);
+            nodeDown[b].push_back(a);
+        }
+
+        // Check there are no monkeys or nazis
+        for(int i = 0 ; i < numNodes; ++i) {
+            ENSURES(nodeUp[i].size()   <= 2);
+            ENSURES(nodeDown[i].size() <= 2);
+            ENSURES(nodeUp[i].size() + nodeDown[i].size() == 3 || nodeUp[i].size() + nodeDown[i].size() == 1);
+        }
+
+
+        // Vector to indicate which nodes are cancelled
+        vector<bool> nodeIsCacelled(nodeType.size(),false);
+
+        // The actual cancellation procedure
+        auto doCancel = [&](arc_t arc) {
+
+            using namespace contourtree;
+
+            auto e = (nodeType[arc.first] == MINIMUM)?(arc.first):(arc.second);
+            auto s = (nodeType[arc.first] == MINIMUM)?(arc.second):(arc.first);
+
+
+            //ENSURES(arc.first < arc.second);
+            ENSURES(!nodeIsCacelled[e] && !nodeIsCacelled[s]);
+            ENSURES((nodeType[e] == MINIMUM || nodeType[e] == MAXIMUM) && nodeType[s] == SADDLE);
+
+            if(nodeType[e] == MINIMUM) ENSURES(nodeDown[e].size() == 0 && nodeUp[e].size() == 1);
+            if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[e].size() == 1 && nodeUp[e].size() == 0);
+            if(nodeType[e] == MINIMUM) ENSURES(nodeDown[s].size() == 2 && nodeUp[s].size() == 1);
+            if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 2);
+            if(nodeType[e] == MINIMUM) ENSURES(utl::countInstances(nodeUp[e],s) == 1 && utl::countInstances(nodeDown[s],e) == 1 );
+            if(nodeType[e] == MAXIMUM) ENSURES(utl::countInstances(nodeDown[e],s) == 1 && utl::countInstances(nodeUp[s],e) == 1 );
+
+
+            nodeIsCacelled[e] = true;
+            nodeIsCacelled[s] = true;
+
+            if(nodeType[e] == MINIMUM) utl::deleteInstances(nodeDown[s],e);
+            if(nodeType[e] == MAXIMUM) utl::deleteInstances(nodeUp[s],e);
+
+            ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 1)
+                    << SVAR(nodeUp[s].size()) << SVAR(nodeDown[s].size());
+
+            auto sd = nodeDown[s][0];
+            auto su = nodeUp[s][0];
+
+
+            ENSURES(utl::replaceInstances(nodeUp[sd],s,su) == 1);
+            ENSURES(utl::replaceInstances(nodeDown[su],s,sd) == 1);
+
+            nodeDown[s].clear();
+            nodeDown[e].clear();
+            nodeUp[s].clear();
+            nodeUp[e].clear();
+
+            return std::make_pair(sd,su);
+        };
+
+
+        auto canCancel = [&](arc_t arc)->bool {
+
+            using namespace contourtree;
+
+            auto &a = arc.first;
+            auto &b = arc.second;
+
+     //       ENSURES(a < b);
+
+            ENSURES((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
+                    (nodeType[a] == MINIMUM && nodeType[b] == MAXIMUM)||
+                    (nodeType[a] == SADDLE && nodeType[b] == SADDLE)||
+                    (nodeType[a] == SADDLE && nodeType[b]  == MAXIMUM));
+
+            if(nodeType[a] == MINIMUM && nodeDown[b].size() != 2)
+                return false;
+
+            if(nodeType[b] == MAXIMUM && nodeUp[a].size() != 2)
+                return false;
+
+            if(nodeIsCacelled[arc.first] || nodeIsCacelled[arc.second] )
+                return false;
+
+            if((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
+               (nodeType[a] == SADDLE  && nodeType[b] == MAXIMUM))
+                return true;
+
+            return false;
+        };
+
+        // Less than comparator.. It'll be properly inverted in the priority queue
+        auto compareArcs = [&](arc_t a, arc_t b) {
+
+    //        //a < b is true
+    //        if(canCancel(a) && !canCancel(b))
+    //            return true;
+
+    //        //a < b is false
+    //        if(canCancel(b) && !canCancel(a))
+    //            return false;
+
+            auto fda = getFeatureWeight(a);
+            auto fdb = getFeatureWeight(b);
+
+            if (fda != fdb)
+                return fda < fdb;
+
+            if(a.first != b.first)
+                return a.first < b.first;
+
+            if(a.second != b.second)
+                return a.second < b.second;
+
+            ENSURES(false) << "Dude. What the hell!!";
+
+        };
+
+        // Declare and prepare the pq
+        priority_queue<arc_t,std::vector<arc_t>,std::function<bool(arc_t,arc_t)>>
+                pq([&](arc_t a, arc_t b)->bool{return compareArcs(b,a);});
+
+        for(int i = 0 ; i < arcs.size(); i += 2) {
+            pq.push({arcs[i],arcs[i+1]});
+        }
+
+        // Go forth and cancel 'em all.
+        while(pq.size() != 0) {
+
+            auto arc = pq.top();pq.pop();
+
+            if(canCancel(arc)) {
+
+                if(stopCancellation(arc))
+                    break;
+
+                auto narc = doCancel(arc);
+                pq.push(narc);
+                doneCancellation(arc,narc);
+            }
+        }
+
+        std::vector<int64_t> sarcs;
+
+        for(int i =0 ; i < nodeIsCacelled.size(); ++i)
+            if(!nodeIsCacelled[i])
+                for(auto j: nodeUp[i]){
+                    ENSURES(!nodeIsCacelled[j]);
+                    sarcs.push_back(i);
+                    sarcs.push_back(j);
+                }
+
+        return sarcs;
+    }
+};
+
+
+struct PersistenceFunction {
+
+
+    scalar_t operator()(arc_t a) const{
+        ENSURES(nodeFuncs[a.second] >= nodeFuncs[a.first]);
+        return (nodeFuncs[a.second] - nodeFuncs[a.first])/frange;
+    }
+
+
+    PersistenceFunction(const std::vector<scalar_t>  &nodeFuncs,bool normalize=false)
+        :nodeFuncs(nodeFuncs)
+    {
+        if( normalize) {
+            auto fmin=*min_element(nodeFuncs.begin(),nodeFuncs.end());
+            auto fmax=*max_element(nodeFuncs.begin(),nodeFuncs.end());
+            frange = fmax - fmin;
+        }
+    }
+
+private:
+
+    const std::vector<scalar_t>  &nodeFuncs;
+    scalar_t frange = 1;
+};
+
+struct HierarchyRecorder {
+
+    std::vector<uint32_t>        &featureHierarchy;
+    const std::vector<char>      &nodeType;
+
+    void operator()(arc_t arc,arc_t narc){
+
+        bool isMaxSad = nodeType[arc.second] == contourtree::MAXIMUM;
+
+        featureHierarchy.push_back(isMaxSad);
+        featureHierarchy.push_back((isMaxSad)?(arc.second):(arc.first)); // Extremum
+        featureHierarchy.push_back((isMaxSad)?(arc.first):(arc.second)); // merged saddle
+        featureHierarchy.push_back(narc.first);
+        featureHierarchy.push_back(narc.second);
+    }
+};
+
+namespace  std {
+
+template <typename T>
+struct tag : std::reference_wrapper<T> {
+    using std::reference_wrapper<T>::reference_wrapper;
+};
+
+using tag_ostream = tag<std::ostream>;
+
+template <typename T1, typename T2>
+static inline std::ostream & operator<<(std::ostream & os, std::pair<T1, T2> const& p) {
+    os<< "std::pair{" << p.first << ", " << p.second  << "}";
+    return os;
+}
+
+//template <typename Other>
+//static inline std::ostream & operator<<(std::ostream & os, Other const& o) {
+//    os<< o;
+//    return os;
+//}
+
+}
+
+struct ArcParentRecorder {
+
+    const std::vector<char> &nodeType;
+    std::map<arc_t,arc_t>   arcParent;
+
+    ArcParentRecorder(const std::vector<char>  &nodeType,const std::vector<int64_t> & arcs)
+        :nodeType(nodeType){
+        for(int i = 0 ; i < arcs.size() ;i+=2  )
+            arcParent[make_pair(arcs[i],arcs[i+1])] = arc_t(-1,-1);
+    }
+
+    arc_t getParent(arc_t arc) const{
+        while(arcParent.at(arc) != arc_t(-1,-1)) {arc = arcParent.at(arc);}
+        return arc;
+    }
+
+    void operator()(arc_t arc,arc_t narc){
+        auto sad = (nodeType[arc.second] == contourtree::MAXIMUM) ? (arc.first) :(arc.second);
+
+        arc_t da1(narc.first,sad);
+        arc_t da2(sad,narc.second);
+
+        ENSURES(arcParent.count(arc) == 1 && arcParent[arc] == arc_t(-1,-1) &&
+                arcParent.count(da1) == 1 && arcParent[da1] == arc_t(-1,-1) &&
+                arcParent.count(da2) == 1 && arcParent[da2] == arc_t(-1,-1) &&
+                arcParent.count(narc) == 0 );
+
+        arcParent[da1]  = narc;
+        arcParent[da2]  = narc;
+        arcParent[arc]  = narc;
+        arcParent[narc] = arc_t(-1,-1);
+
+    }
+};
+
+struct OrderRecorder {
+
+    std::vector<uint32_t> &orderPairs;
+
+    void operator()(arc_t arc){
+        orderPairs.push_back(arc.first);
+        orderPairs.push_back(arc.second);
+    }
+};
+
+struct WeightsRecorder {
+
+    std::vector<float>                   &wts;
+    scalar_t lWt = 0;
+
+    void operator()(arc_t arc,scalar_t wt){
+        lWt = max(lWt,wt);
+        wts.push_back(lWt);
+    }
+};
+
 void contourtree::simplifyPers(
         const std::vector<scalar_t>  &nodeFuncs,
         const std::vector<char>      &nodeType,
@@ -146,235 +457,32 @@ void contourtree::simplifyPers(
         )
  {
 
-//    // Debug Helper functions
-//    auto nodeTypeStr= [&](int32_t a)->string {
-//        if(nodeType[a] == MINIMUM) return "min";
-//        if(nodeType[a] == SADDLE) return "sad";
-//        if(nodeType[a] == MAXIMUM) return "max";
-//        ENSURES(false);return "";
-//    };
-
-
-//    auto arcTypeStr= [&](arc_t a)->string {
-//        return nodeTypeStr(a.first) +"-"+nodeTypeStr(a.first) +"-";
-//    };
-
-//    auto strArc = [&](arc_t a){
-//        auto pers = getPersistence(a);
-//        std::stringstream ss; ss <<a.first <<", " << a.second <<", " << SVAR(pers) << " " <<arcTypeStr(a) ;
-//        return ss.str();
-//    };
-
-    size_t numNodes = nodeFuncs.size();
-    size_t numArcs  = arcs.size()/2;
-
-    ENSURES(nodeType.size() == numNodes && nodeType.size() == numNodes);
-    ENSURES(numArcs +1 == numNodes);
-
-
-    // Form a directed graph
-    vector<vector<int64_t>> nodeUp(nodeType.size());
-    vector<vector<int64_t>> nodeDown(nodeType.size());
-    for(int i = 0 ; i < arcs.size(); i+= 2){
-        auto a = arcs[i];
-        auto b = arcs[i+1];
-
-        nodeUp[a].push_back(b);
-        nodeDown[b].push_back(a);
-    }
-
-    // Check there are no monkeys or nazis
-    for(int i = 0 ; i < numNodes; ++i) {
-        ENSURES(nodeUp[i].size()   <= 2);
-        ENSURES(nodeDown[i].size() <= 2);
-        ENSURES(nodeUp[i].size() + nodeDown[i].size() == 3 || nodeUp[i].size() + nodeDown[i].size() == 1);
-    }
+    ENSURES(nodeType.size() == nodeFuncs.size());
 
     // Persistence
-    auto getPersistence = [&](arc_t a)->scalar_t {
-        ENSURES(nodeFuncs[a.second] >= nodeFuncs[a.first]);
-        return nodeFuncs[a.second] - nodeFuncs[a.first];
-    };
-
+    auto getPersistence  = PersistenceFunction{nodeFuncs,true};
+    auto recordHierarchy = HierarchyRecorder{featureHierarchy,nodeType};
+    auto recordOrder     = OrderRecorder{orderPairs};
+    auto recordWeight    = WeightsRecorder{wts};
 
     // Book keeping after a cancellation
-    auto fmin=*min_element(nodeFuncs.begin(),nodeFuncs.end());
-    auto fmax=*max_element(nodeFuncs.begin(),nodeFuncs.end());
-    auto lpers=scalar_t(0);
-    int curNumFeatures = numArcs;
-    vector<bool> nodeIsCacelled(nodeType.size(),false);
+    int curNumFeatures = arcs.size()/2;
     auto doneCancel = [&](arc_t arc,arc_t narc)
     {
-        // Persistences NEED NOT be monotonic.
-        // But they are monotonic in each dimension
-        lpers = std::max(lpers,getPersistence(arc));
-
-        orderPairs.push_back(arc.first);
-        orderPairs.push_back(arc.second);
-
-        wts.push_back(lpers/(fmax-fmin));
-
-        bool isMaxSad = nodeType[arc.second] == MAXIMUM;
-
-        featureHierarchy.push_back(isMaxSad);
-        featureHierarchy.push_back((isMaxSad)?(arc.second):(arc.first)); // Extremum
-        featureHierarchy.push_back((isMaxSad)?(arc.first):(arc.second)); // merged saddle
-        featureHierarchy.push_back(narc.first); // merged saddle
-        featureHierarchy.push_back(narc.second); // merged saddle
-
+        recordHierarchy(arc,narc);
+        recordOrder(arc);
+        recordWeight(arc,getPersistence(arc));
         curNumFeatures -=2;
     };
 
-    // Check books if the procedure must quit before cancelling this arc
-    auto shouldQuitBefore = [&](arc_t arc)->bool {
+    auto stopCancel = [&](arc_t arc)->bool {
         return (curNumFeatures < reqNumFeatures) || (reqPers < getPersistence(arc) );
     };
 
+    auto simpKernel = contourTreeSimplificationKernel{getPersistence,doneCancel,stopCancel};
 
-    // Book keeping after all cacellations
-    auto allCancelsDone = [&]()->bool {
+    sarcs = simpKernel(nodeType,arcs);
 
-        sarcs.clear();
-
-        for(int i =0 ; i < nodeIsCacelled.size(); ++i)
-            if(!nodeIsCacelled[i])
-                for(auto j: nodeUp[i]){
-                    ENSURES(!nodeIsCacelled[j]);
-                    sarcs.push_back(i);
-                    sarcs.push_back(j);
-                }
-    };
-
-
-
-    // The actual cancellation procedure
-    auto doCancel = [&](arc_t arc) {
-
-        using namespace contourtree;
-
-        auto e = (nodeType[arc.first] == MINIMUM)?(arc.first):(arc.second);
-        auto s = (nodeType[arc.first] == MINIMUM)?(arc.second):(arc.first);
-
-
-        //ENSURES(arc.first < arc.second);
-        ENSURES(!nodeIsCacelled[e] && !nodeIsCacelled[s]);
-        ENSURES((nodeType[e] == MINIMUM || nodeType[e] == MAXIMUM) && nodeType[s] == SADDLE);
-
-        if(nodeType[e] == MINIMUM) ENSURES(nodeDown[e].size() == 0 && nodeUp[e].size() == 1);
-        if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[e].size() == 1 && nodeUp[e].size() == 0);
-        if(nodeType[e] == MINIMUM) ENSURES(nodeDown[s].size() == 2 && nodeUp[s].size() == 1);
-        if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 2);
-        if(nodeType[e] == MINIMUM) ENSURES(utl::countInstances(nodeUp[e],s) == 1 && utl::countInstances(nodeDown[s],e) == 1 );
-        if(nodeType[e] == MAXIMUM) ENSURES(utl::countInstances(nodeDown[e],s) == 1 && utl::countInstances(nodeUp[s],e) == 1 );
-
-
-        nodeIsCacelled[e] = true;
-        nodeIsCacelled[s] = true;
-
-        if(nodeType[e] == MINIMUM) utl::deleteInstances(nodeDown[s],e);
-        if(nodeType[e] == MAXIMUM) utl::deleteInstances(nodeUp[s],e);
-
-        ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 1)
-                << SVAR(nodeUp[s].size()) << SVAR(nodeDown[s].size());
-
-        auto sd = nodeDown[s][0];
-        auto su = nodeUp[s][0];
-
-
-        ENSURES(utl::replaceInstances(nodeUp[sd],s,su) == 1);
-        ENSURES(utl::replaceInstances(nodeDown[su],s,sd) == 1);
-
-        nodeDown[s].clear();
-        nodeDown[e].clear();
-        nodeUp[s].clear();
-        nodeUp[e].clear();
-
-        doneCancel(arc,std::make_pair(sd,su));
-
-        return std::make_pair(sd,su);
-    };
-
-
-    auto canCancel = [&](arc_t arc)->bool {
-
-        using namespace contourtree;
-
-        auto &a = arc.first;
-        auto &b = arc.second;
-
- //       ENSURES(a < b);
-
-        ENSURES((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
-                (nodeType[a] == MINIMUM && nodeType[b] == MAXIMUM)||
-                (nodeType[a] == SADDLE && nodeType[b] == SADDLE)||
-                (nodeType[a] == SADDLE && nodeType[b]  == MAXIMUM));
-
-        if(nodeType[a] == MINIMUM && nodeDown[b].size() != 2)
-            return false;
-
-        if(nodeType[b] == MAXIMUM && nodeUp[a].size() != 2)
-            return false;
-
-        if(nodeIsCacelled[arc.first] || nodeIsCacelled[arc.second] )
-            return false;
-
-        if((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
-           (nodeType[a] == SADDLE  && nodeType[b] == MAXIMUM))
-            return true;
-
-        return false;
-    };
-
-    // Less than comparator.. It'll be properly inverted in the priority queue
-    auto compareArcs = [&](arc_t a, arc_t b) {
-
-//        //a < b is true
-//        if(canCancel(a) && !canCancel(b))
-//            return true;
-
-//        //a < b is false
-//        if(canCancel(b) && !canCancel(a))
-//            return false;
-
-        auto fda = getPersistence(a);
-        auto fdb = getPersistence(b);
-
-        if (fda != fdb)
-            return fda < fdb;
-
-        if(a.first != b.first)
-            return a.first < b.first;
-
-        if(a.second != b.second)
-            return a.second < b.second;
-
-        ENSURES(false) << "Dude. What the hell!!";
-
-    };
-
-    // Declare and prepare the pq
-    priority_queue<arc_t,std::vector<arc_t>,std::function<bool(arc_t,arc_t)>>
-            pq([&](arc_t a, arc_t b)->bool{return compareArcs(b,a);});
-
-    for(int i = 0 ; i < arcs.size(); i += 2) {
-        pq.push({arcs[i],arcs[i+1]});
-    }
-
-    // Go forth and cancel 'em all.
-    while(pq.size() != 0) {
-
-        auto arc = pq.top();pq.pop();
-
-        if(canCancel(arc)) {
-
-            if(shouldQuitBefore(arc))
-                break;
-
-            pq.push(doCancel(arc));
-        }
-    }
-
-    allCancelsDone();
 }
 
 void contourtree::sqeezeCT(
@@ -408,5 +516,47 @@ void contourtree::sqeezeCT(
     nodeFuncs   = nodefns_;
     nodeTypes = nodeTypes_;
 }
+
+
+std::vector<int64_t>  contourtree::preSimplifyPers(
+        std::vector<int64_t>         &nodeIds,
+        std::vector<scalar_t>        &nodeFuncs,
+        std::vector<char>            &nodeType,
+        std::vector<int64_t>         &arcs,
+        float preSimpThresh
+        )
+{
+
+
+    ENSURES(nodeType.size() == nodeFuncs.size() && nodeFuncs.size() == nodeType.size());
+
+    auto getPersistence   = PersistenceFunction{nodeFuncs,true};
+    auto recordArcParent  = ArcParentRecorder{nodeType,arcs};
+
+    auto simpKernel = contourTreeSimplificationKernel{getPersistence,
+            [&](arc_t arc,arc_t narc){recordArcParent(arc,narc);},
+            [&](arc_t arc)->bool{return preSimpThresh < getPersistence(arc);}};
+
+
+    std::vector<arc_t> numToOldArc;
+    for(int i = 0 ; i < arcs.size(); i+=2)
+        numToOldArc.push_back(std::make_pair(arcs[i],arcs[i+1]));
+
+    arcs = simpKernel(nodeType,arcs);
+
+    std::map<arc_t,int64_t> newArcToNum;
+    for(int i = 0 ; i < arcs.size(); i+=2 )
+        newArcToNum[std::make_pair(arcs[i],arcs[i+1])] = i/2;
+
+
+    std::vector<int64_t> oldArcNumToNewArcNum;
+    for(size_t i =0; i < numToOldArc.size(); ++i)
+        oldArcNumToNewArcNum.push_back(newArcToNum.at(recordArcParent.getParent(numToOldArc[i])));
+
+    sqeezeCT(nodeIds,nodeFuncs,nodeType,arcs);
+
+    return oldArcNumToNewArcNum;
+}
+
 
 

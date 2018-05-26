@@ -42,4 +42,16 @@ void sqeezeCT(
         std::vector<int64_t>         &sarcs
         );
 
+/// \brief Simplification variant intended for presimplification using persistence
+///        All cancelled nodes will be eliminated
+/// \returns a mapping from old arc idxs to new arc idxs
+std::vector<int64_t>  preSimplifyPers(
+        std::vector<int64_t>         &nodeIds,
+        std::vector<scalar_t>        &nodeFuncs,
+        std::vector<char>            &nodeType,
+        std::vector<int64_t>         &arcs,
+        float preSimpThreshNorm = 0.01
+        );
+
+
 }
