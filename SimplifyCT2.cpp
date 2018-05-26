@@ -10,7 +10,7 @@ using namespace  std;
 typedef pair<int64_t,int64_t> arc_t;
 
 
-void contourtree::splitMonkeysAndNazis(
+std::vector<int64_t> contourtree::splitMonkeysAndNazis(
     std::vector<int64_t>   &nodeids,
     std::vector<scalar_t>  &nodeFuncs,
     std::vector<char>      &nodeType,
@@ -19,6 +19,11 @@ void contourtree::splitMonkeysAndNazis(
 
     int numNodes = nodeFuncs.size();
     int numArcs  = arcs.size()/2;
+
+
+    std::vector<arc_t> oldArcNumToNodeIdPairs;
+    for(int i = 0 ; i < arcs.size(); i+=2)
+        oldArcNumToNodeIdPairs.push_back(std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]]));
 
 
     vector<vector<int64_t>> nodeUp(numNodes);
@@ -116,6 +121,16 @@ void contourtree::splitMonkeysAndNazis(
     numArcs = arcs.size()/2;
 
     ENSURES(numArcs+1 == numNodes);
+
+    std::map<arc_t,int64_t> nodeIdPairsToNewArcNum;
+    for(int i = 0 ; i < arcs.size(); i+=2)
+        nodeIdPairsToNewArcNum[std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]])] = i/2;
+
+    std::vector<int64_t> oldArcNumToNewArcNum;
+    for(int i = 0 ; i < oldArcNumToNodeIdPairs.size(); ++i)
+        oldArcNumToNewArcNum.push_back(nodeIdPairsToNewArcNum[oldArcNumToNodeIdPairs[i]]);
+
+    return oldArcNumToNewArcNum;
 }
 
 void contourtree::simplifyPers(

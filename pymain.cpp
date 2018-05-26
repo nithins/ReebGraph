@@ -97,32 +97,19 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
     mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMapPtr);
 
     std::map<int64_t,int64_t> idToNodeNum;
-
     for(int i = 0; i < nodeids.size(); ++i )
         idToNodeNum[nodeids[i]] = i;
-
     for(auto &a: arcs)
         a = idToNodeNum[a];
 
     typedef std::pair<int64_t,int64_t> arc_t;
 
     {
-
-        std::vector<arc_t> oldArcNumToNodeIdPairs;
-        for(int i = 0 ; i < arcs.size(); i+=2)
-            oldArcNumToNodeIdPairs.push_back(std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]]));
-
-
-        contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
-
-
-        std::map<arc_t,int64_t> nodeIdPairsToNewArcNum;
-        for(int i = 0 ; i < arcs.size(); i+=2)
-            nodeIdPairsToNewArcNum[std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]])] = i/2;
-
+        auto arcRemap = contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
 
         for(int i = 0 ; i < X*Y*Z; ++i)
-            arcMapPtr[i] = nodeIdPairsToNewArcNum[oldArcNumToNodeIdPairs[arcMapPtr[i]]];
+            arcMapPtr[i] = arcRemap[arcMapPtr[i]];
+
 
     }
 

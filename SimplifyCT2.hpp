@@ -25,7 +25,8 @@ void simplifyPers(
         );
 
 /// \brief Splitting Monkey saddles and Nazi configurations
-void splitMonkeysAndNazis(
+/// \returns a mapping from old arc idxs to new arc idxs
+std::vector<int64_t> splitMonkeysAndNazis(
         std::vector<int64_t>   &nodeids,
         std::vector<scalar_t>  &nodeFuncs,
         std::vector<char>      &nodeType,
