@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style> /* set the CSS */
+
+.nodes circle {
+  stroke: #222;
+  stroke-width: 1.5px;
+  fill:#ceb
+}
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+.area {
+  fill: url(#grad2);
+}
+
+</style>
+<body>
+<svg width="800" height="500">
+    <defs>
+    <linearGradient id="MyGradient">
+        <stop offset="5%" stop-color="#F60" />
+        <stop offset="95%" stop-color="#FF6" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:rgb(255,0,0);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgb(255,255,0);stop-opacity:0" />
+    </linearGradient>
+    </defs>
+</svg>
+<!-- load the d3.js library -->     
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+// set the dimensions and margins of the graph
+var margin = {top: 20, right: 20, bottom: 30, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+// parse the date / time
+var parseTime = d3.timeParse("%d-%b-%y");
+
+// set the ranges
+var x = d3.scaleTime().range([0, width]);
+var y = d3.scaleLinear().range([height, 0]);
+
+// define the line
+var valueline = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.close); });
+    
+// define the area
+var area = d3.area()
+    .x(function(d) { return x(d.date); })
+    .y0(height)
+    .y1(function(d) { return y(d.close); });    
+
+// append the svg obgect to the body of the page
+// appends a 'group' element to 'svg'
+// moves the 'group' element to the top left margin
+var svg = d3.select("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+// Get the data
+d3.csv("data.csv", function(error, data) {
+  if (error) throw error;
+
+  // format the data
+  data.forEach(function(d,i) {
+      d.date = parseTime(d.date);
+      d.close = +d.close;
+      d.index = i
+  });
+
+  // Scale the range of the data
+  x.domain(d3.extent(data, function(d) { return d.date; }));
+  y.domain([0, d3.max(data, function(d) { return d.close; })]);
+  
+
+  // Add the valueline path.
+  var line = svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline);
+      
+  // add the area
+  svg.append("path")
+        .data([data])
+        .attr("class", "area")
+        .attr("d", area);
+
+                  
+  var node = svg.append("g")
+    .attr("class", "nodes")
+    .selectAll("nodes")
+    .data(data)
+    .enter().append("circle")
+      .attr("r", 5)
+      .attr("cx",function(d){ return x(d.date);})
+      .attr("cy",function(d){ return y(d.close);})
+      .call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended));
+          
+
+//       .attr("fill", function(d) { return color(d.group); })
+
+  node.append("title")
+      .text(function(d) {return ""+d.date+","+d.close; });
+
+  // Add the X Axis
+  svg.append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+
+  // Add the Y Axis
+  svg.append("g")
+      .call(d3.axisLeft(y));
+
+});
+
+function dragstarted(d) {
+//   if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+//   d.fx = d.x;
+//   d.fy = d.y;
+
+}
+
+function dragged(d) {
+  d3.select(this).attr("cy",d3.event.y)
+
+  var data = d3.select("path").data()[0]
+  data[d.index].close = y.invert(d3.event.y)
+  
+  d3.select(".area").data([data])
+      .attr("class", "area")
+      .attr("d", area)
+
+  d3.select(".line").data([data])
+      .attr("class", "line")
+      .attr("d", valueline)
+
+
+}
+
+function dragended(d) {
+//   if (!d3.event.active) simulation.alphaTarget(0);
+//   d.fx = null;
+//   d.fy = null;
+
+}
+
+
+</script>
+</body>
