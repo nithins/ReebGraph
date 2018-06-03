@@ -6,6 +6,7 @@
 
 
 using namespace  std;
+using namespace contourtree;
 
 std::vector<int64_t> contourtree::splitMonkeysAndNazis(
     std::vector<int64_t>   &nodeids,
@@ -133,214 +134,255 @@ std::vector<int64_t> contourtree::splitMonkeysAndNazis(
 typedef contourtree::arc_t arc_t;
 
 
-/// \brief the generic simplification kernel
-struct contourTreeSimplificationKernel {
-
-    /// \brief getFeature weight
-    std::function<scalar_t(arc_t)>   getFeatureWeight;
-
-    /// \brief called for book keepingafter every cancellation the.
-    ///       the cancelled arc and the newly inserted arc are given as parameters.
-    std::function<void(arc_t,arc_t)> doneCancellation;
-
-    /// \brief should return true if cancellation should stop before the given weight
-    std::function<bool(arc_t)>       stopCancellation;
+/// \brief the actual cancellation procedure
+/// \returns the set of arcs that survive after cancellation
+std::vector<arc_t>  contourtree::contourTreeSimplificationKernel::operator()
+(const std::vector<char>  &nodeType,const std::vector<arc_t>   &arcs)
+{
 
 
-    /// \brief the actual cancellation procedure
-    /// \returns the set of arcs that survive after cancellation
-	std::vector<arc_t>  operator()
-	(const std::vector<char>  &nodeType,const std::vector<arc_t>   &arcs)
-    {
+	size_t numNodes = nodeType.size();
+	size_t numArcs  = arcs.size();
+	ENSURES(numArcs +1 == numNodes);
 
 
-        size_t numNodes = nodeType.size();
-		size_t numArcs  = arcs.size();
-        ENSURES(numArcs +1 == numNodes);
+	// Form a directed graph
+	vector<vector<int64_t>> nodeUp(nodeType.size());
+	vector<vector<int64_t>> nodeDown(nodeType.size());
+	for(auto arc: arcs){
+		auto a = arc.first;
+		auto b = arc.second;
+
+		nodeUp[a].push_back(b);
+		nodeDown[b].push_back(a);
+	}
+
+	// Check there are no monkeys or nazis
+	for(int i = 0 ; i < numNodes; ++i) {
+		ENSURES(nodeUp[i].size()   <= 2);
+		ENSURES(nodeDown[i].size() <= 2);
+		ENSURES(nodeUp[i].size() + nodeDown[i].size() == 3 || nodeUp[i].size() + nodeDown[i].size() == 1);
+	}
 
 
-        // Form a directed graph
-        vector<vector<int64_t>> nodeUp(nodeType.size());
-        vector<vector<int64_t>> nodeDown(nodeType.size());
-		for(auto arc: arcs){
-			auto a = arc.first;
-			auto b = arc.second;
+	// Vector to indicate which nodes are cancelled
+	vector<bool> nodeIsCacelled(nodeType.size(),false);
 
-            nodeUp[a].push_back(b);
-            nodeDown[b].push_back(a);
-        }
+	// The actual cancellation procedure
+	auto doCancel = [&](arc_t arc) {
 
-        // Check there are no monkeys or nazis
-        for(int i = 0 ; i < numNodes; ++i) {
-            ENSURES(nodeUp[i].size()   <= 2);
-            ENSURES(nodeDown[i].size() <= 2);
-            ENSURES(nodeUp[i].size() + nodeDown[i].size() == 3 || nodeUp[i].size() + nodeDown[i].size() == 1);
-        }
+		using namespace contourtree;
+
+		auto e = (nodeType[arc.first] == MINIMUM)?(arc.first):(arc.second);
+		auto s = (nodeType[arc.first] == MINIMUM)?(arc.second):(arc.first);
 
 
-        // Vector to indicate which nodes are cancelled
-        vector<bool> nodeIsCacelled(nodeType.size(),false);
+		//ENSURES(arc.first < arc.second);
+		ENSURES(!nodeIsCacelled[e] && !nodeIsCacelled[s]);
+		ENSURES((nodeType[e] == MINIMUM || nodeType[e] == MAXIMUM) && nodeType[s] == SADDLE);
 
-        // The actual cancellation procedure
-        auto doCancel = [&](arc_t arc) {
-
-            using namespace contourtree;
-
-            auto e = (nodeType[arc.first] == MINIMUM)?(arc.first):(arc.second);
-            auto s = (nodeType[arc.first] == MINIMUM)?(arc.second):(arc.first);
-
-
-            //ENSURES(arc.first < arc.second);
-            ENSURES(!nodeIsCacelled[e] && !nodeIsCacelled[s]);
-            ENSURES((nodeType[e] == MINIMUM || nodeType[e] == MAXIMUM) && nodeType[s] == SADDLE);
-
-            if(nodeType[e] == MINIMUM) ENSURES(nodeDown[e].size() == 0 && nodeUp[e].size() == 1);
-            if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[e].size() == 1 && nodeUp[e].size() == 0);
-            if(nodeType[e] == MINIMUM) ENSURES(nodeDown[s].size() == 2 && nodeUp[s].size() == 1);
-            if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 2);
-            if(nodeType[e] == MINIMUM) ENSURES(utl::countInstances(nodeUp[e],s) == 1 && utl::countInstances(nodeDown[s],e) == 1 );
-            if(nodeType[e] == MAXIMUM) ENSURES(utl::countInstances(nodeDown[e],s) == 1 && utl::countInstances(nodeUp[s],e) == 1 );
+		if(nodeType[e] == MINIMUM) ENSURES(nodeDown[e].size() == 0 && nodeUp[e].size() == 1);
+		if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[e].size() == 1 && nodeUp[e].size() == 0);
+		if(nodeType[e] == MINIMUM) ENSURES(nodeDown[s].size() == 2 && nodeUp[s].size() == 1);
+		if(nodeType[e] == MAXIMUM) ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 2);
+		if(nodeType[e] == MINIMUM) ENSURES(utl::countInstances(nodeUp[e],s) == 1 && utl::countInstances(nodeDown[s],e) == 1 );
+		if(nodeType[e] == MAXIMUM) ENSURES(utl::countInstances(nodeDown[e],s) == 1 && utl::countInstances(nodeUp[s],e) == 1 );
 
 
-            nodeIsCacelled[e] = true;
-            nodeIsCacelled[s] = true;
+		nodeIsCacelled[e] = true;
+		nodeIsCacelled[s] = true;
 
-            if(nodeType[e] == MINIMUM) utl::deleteInstances(nodeDown[s],e);
-            if(nodeType[e] == MAXIMUM) utl::deleteInstances(nodeUp[s],e);
+		if(nodeType[e] == MINIMUM) utl::deleteInstances(nodeDown[s],e);
+		if(nodeType[e] == MAXIMUM) utl::deleteInstances(nodeUp[s],e);
 
-            ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 1)
-                    << SVAR(nodeUp[s].size()) << SVAR(nodeDown[s].size());
+		ENSURES(nodeDown[s].size() == 1 && nodeUp[s].size() == 1)
+				<< SVAR(nodeUp[s].size()) << SVAR(nodeDown[s].size());
 
-            auto sd = nodeDown[s][0];
-            auto su = nodeUp[s][0];
-
-
-            ENSURES(utl::replaceInstances(nodeUp[sd],s,su) == 1);
-            ENSURES(utl::replaceInstances(nodeDown[su],s,sd) == 1);
-
-            nodeDown[s].clear();
-            nodeDown[e].clear();
-            nodeUp[s].clear();
-            nodeUp[e].clear();
-
-            return std::make_pair(sd,su);
-        };
+		auto sd = nodeDown[s][0];
+		auto su = nodeUp[s][0];
 
 
-        auto canCancel = [&](arc_t arc)->bool {
+		ENSURES(utl::replaceInstances(nodeUp[sd],s,su) == 1);
+		ENSURES(utl::replaceInstances(nodeDown[su],s,sd) == 1);
 
-            using namespace contourtree;
+		nodeDown[s].clear();
+		nodeDown[e].clear();
+		nodeUp[s].clear();
+		nodeUp[e].clear();
 
-            auto &a = arc.first;
-            auto &b = arc.second;
+		return std::make_pair(sd,su);
+	};
 
-     //       ENSURES(a < b);
 
-            ENSURES((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
-                    (nodeType[a] == MINIMUM && nodeType[b] == MAXIMUM)||
-                    (nodeType[a] == SADDLE && nodeType[b] == SADDLE)||
-                    (nodeType[a] == SADDLE && nodeType[b]  == MAXIMUM));
+	auto canCancel = [&](arc_t arc)->bool {
 
-            if(nodeType[a] == MINIMUM && nodeDown[b].size() != 2)
-                return false;
+		using namespace contourtree;
 
-            if(nodeType[b] == MAXIMUM && nodeUp[a].size() != 2)
-                return false;
+		auto &a = arc.first;
+		auto &b = arc.second;
 
-            if(nodeIsCacelled[arc.first] || nodeIsCacelled[arc.second] )
-                return false;
+ //       ENSURES(a < b);
 
-            if((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
-               (nodeType[a] == SADDLE  && nodeType[b] == MAXIMUM))
-                return true;
+		ENSURES((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
+				(nodeType[a] == MINIMUM && nodeType[b] == MAXIMUM)||
+				(nodeType[a] == SADDLE && nodeType[b] == SADDLE)||
+				(nodeType[a] == SADDLE && nodeType[b]  == MAXIMUM));
 
-            return false;
-        };
+		if(nodeType[a] == MINIMUM && nodeDown[b].size() != 2)
+			return false;
 
-        // Less than comparator.. It'll be properly inverted in the priority queue
-        auto compareArcs = [&](arc_t a, arc_t b) {
+		if(nodeType[b] == MAXIMUM && nodeUp[a].size() != 2)
+			return false;
 
-			if(canCancel(a) && canCancel(b)) {
+		if(nodeIsCacelled[arc.first] || nodeIsCacelled[arc.second] )
+			return false;
 
-				auto fda = getFeatureWeight(a);
-				auto fdb = getFeatureWeight(b);
+		if((nodeType[a] == MINIMUM && nodeType[b] == SADDLE)||
+		   (nodeType[a] == SADDLE  && nodeType[b] == MAXIMUM))
+			return true;
 
-				if (fda != fdb)
-					return fda < fdb;
+		return false;
+	};
+
+	// Less than comparator.. It'll be properly inverted in the priority queue
+	auto compareArcs = [&](arc_t a, arc_t b) {
+
+		if(canCancel(a) && canCancel(b)) {
+
+			auto fda = getFeatureWeight(a);
+			auto fdb = getFeatureWeight(b);
+
+			if (fda != fdb)
+				return fda < fdb;
+		}
+
+		if(a.first != b.first)
+			return a.first < b.first;
+
+		if(a.second != b.second)
+			return a.second < b.second;
+
+		ENSURES(false) << "Dude. What the hell!!";
+
+	};
+
+	// Declare and prepare the pq
+	priority_queue<arc_t,std::vector<arc_t>,std::function<bool(arc_t,arc_t)>>
+			pq([&](arc_t a, arc_t b)->bool{return compareArcs(b,a);});
+
+	for(auto arc: arcs){
+		pq.push(arc);
+	}
+
+	// Go forth and cancel 'em all.
+	while(pq.size() != 0) {
+
+		auto arc = pq.top();pq.pop();
+
+		if(canCancel(arc)) {
+
+			if(stopCancellation(arc))
+				break;
+
+			auto narc = doCancel(arc);
+			doneCancellation(arc,narc);
+			pq.push(narc);
+		}
+	}
+
+	std::vector<arc_t> sarcs;
+
+	for(int i =0 ; i < nodeIsCacelled.size(); ++i)
+		if(!nodeIsCacelled[i])
+			for(auto j: nodeUp[i]){
+				ENSURES(!nodeIsCacelled[j]);
+				sarcs.push_back({i,j});
 			}
 
-			if(a.first != b.first)
-                return a.first < b.first;
-
-            if(a.second != b.second)
-                return a.second < b.second;
-
-            ENSURES(false) << "Dude. What the hell!!";
-
-        };
-
-        // Declare and prepare the pq
-        priority_queue<arc_t,std::vector<arc_t>,std::function<bool(arc_t,arc_t)>>
-                pq([&](arc_t a, arc_t b)->bool{return compareArcs(b,a);});
-
-		for(auto arc: arcs){
-			pq.push(arc);
-        }
-
-        // Go forth and cancel 'em all.
-        while(pq.size() != 0) {
-
-            auto arc = pq.top();pq.pop();
-
-            if(canCancel(arc)) {
-
-                if(stopCancellation(arc))
-                    break;
-
-                auto narc = doCancel(arc);
-                doneCancellation(arc,narc);
-				pq.push(narc);
-			}
-        }
-
-		std::vector<arc_t> sarcs;
-
-        for(int i =0 ; i < nodeIsCacelled.size(); ++i)
-            if(!nodeIsCacelled[i])
-                for(auto j: nodeUp[i]){
-                    ENSURES(!nodeIsCacelled[j]);
-					sarcs.push_back({i,j});
-                }
-
-        return sarcs;
-    }
-};
+	return sarcs;
+}
 
 
-struct PersistenceFunction {
+
+scalar_t contourtree::PersistenceFunction::operator()(arc_t a) const{
+	ENSURES(nodeFuncs[a.second] >= nodeFuncs[a.first]);
+	return (nodeFuncs[a.second] - nodeFuncs[a.first])/frange;
+}
 
 
-    scalar_t operator()(arc_t a) const{
-        ENSURES(nodeFuncs[a.second] >= nodeFuncs[a.first]);
-        return (nodeFuncs[a.second] - nodeFuncs[a.first])/frange;
-    }
+contourtree::PersistenceFunction::PersistenceFunction
+(const std::vector<scalar_t>  &nodeFuncs,bool normalize)
+	:nodeFuncs(nodeFuncs)
+{
+	if( normalize) {
+		auto fmin=*min_element(nodeFuncs.begin(),nodeFuncs.end());
+		auto fmax=*max_element(nodeFuncs.begin(),nodeFuncs.end());
+		frange = fmax - fmin;
+	}
+}
+
+scalar_t  HyperVolumeFunction::fd(arc_t a) const{
+	auto r = nodeFuncs[a.second] - nodeFuncs[a.first];
+	ENSURES(r >= 0); return r;
+}
 
 
-    PersistenceFunction(const std::vector<scalar_t>  &nodeFuncs,bool normalize=false)
-        :nodeFuncs(nodeFuncs)
-    {
-        if( normalize) {
-            auto fmin=*min_element(nodeFuncs.begin(),nodeFuncs.end());
-            auto fmax=*max_element(nodeFuncs.begin(),nodeFuncs.end());
-            frange = fmax - fmin;
-        }
-    }
+HyperVolumeFunction::HyperVolumeFunction
+(const std::vector<scalar_t>  &nodeFuncs,
+ const std::vector<char>      &nodeType,
+ const std::vector<arc_t>     &arcs,
+ const std::vector<float>     &arcVols)
+	:nodeFuncs(nodeFuncs)
+	,nodeType(nodeType)
+	,arcHVol(arcHVol_)
+{
+	int i=0;
+	for(auto arc: arcs){
+		auto v = arcVols[i++];
+		arcHVol[arc] = {v,fd(arc)*v};
+	}
+}
 
-private:
 
-    const std::vector<scalar_t>  &nodeFuncs;
-    scalar_t frange = 1;
-};
+scalar_t HyperVolumeFunction::operator()(arc_t a) const{
+	return arcHVol.at(a)[1];
+}
+
+void HyperVolumeFunction::operator()(arc_t carc, arc_t narc){
+
+	// Saddle Max carc
+	arc_t larc = {carc.first,narc.second};
+	arc_t marc = {narc.first,carc.first};
+
+	// Saddle Min Carc
+	if(nodeType[carc.first] == contourtree::MINIMUM){
+		larc = {narc.first,carc.second};
+		marc = {carc.second,narc.second};
+	}
+
+	ENSURES(arcHVol.count(carc) == 1 &&
+			arcHVol.count(larc) == 1 &&
+			arcHVol.count(marc) == 1 &&
+			arcHVol.count(narc) == 0);
+
+	float v = 0
+			+ arcHVol[carc][0]
+			+ arcHVol[larc][0]
+			+ arcHVol[marc][0];
+
+	float hv = 0
+			+ arcHVol[carc][1] + arcHVol[carc][0]*fd(marc)
+			+ arcHVol[larc][1] + arcHVol[larc][0]*fd(marc)
+			+ arcHVol[marc][1];
+
+	arcHVol[narc] = {v,hv};
+
+	arcHVol.erase(carc);
+	arcHVol.erase(larc);
+	arcHVol.erase(marc);
+}
+
+
 
 struct HierarchyRecorder {
 
@@ -544,83 +586,9 @@ std::vector<int64_t>  contourtree::preSimplifyPers(
 	return rmap;
 }
 
-struct HyperVolumeFunction {
-
-	struct arcDat {
-		scalar_t v;
-		scalar_t hv;
-	};
 
 
-	scalar_t fd(arc_t a) const{
-		auto r = nodeFuncs[a.second] - nodeFuncs[a.first];
-		ENSURES(r >= 0); return r;
-	}
 
-
-	HyperVolumeFunction(const std::vector<scalar_t>  &nodeFuncs,
-						const std::vector<char>      &nodeType,
-						const std::vector<arc_t> & arcs,
-						const std::vector<float> & arcVols)
-		:nodeFuncs(nodeFuncs)
-		,nodeType(nodeType)
-		,arcHVol(arcHVol_)
-	{
-		int i=0;
-		for(auto arc: arcs){
-			auto v = arcVols[i++];
-			arcHVol[arc] = {v,fd(arc)*v};
-		}
-	}
-
-
-	scalar_t operator()(arc_t a) const{
-		return arcHVol.at(a).hv;
-	}
-
-	void operator()(arc_t carc, arc_t narc){
-
-		// Saddle Max carc
-		arc_t larc = {carc.first,narc.second};
-		arc_t marc = {narc.first,carc.first};
-
-		// Saddle Min Carc
-		if(nodeType[carc.first] == contourtree::MINIMUM){
-			larc = {narc.first,carc.second};
-			marc = {carc.second,narc.second};
-		}
-
-		ENSURES(arcHVol.count(carc) == 1 &&
-				arcHVol.count(larc) == 1 &&
-				arcHVol.count(marc) == 1 &&
-				arcHVol.count(narc) == 0);
-
-		float v = 0
-				+ arcHVol[carc].v
-				+ arcHVol[larc].v
-				+ arcHVol[marc].v;
-
-		float hv = 0
-				+ arcHVol[carc].hv + arcHVol[carc].v*fd(marc)
-				+ arcHVol[larc].hv + arcHVol[larc].v*fd(marc)
-				+ arcHVol[marc].hv;
-
-		arcHVol[narc] = {v,hv};
-
-		arcHVol.erase(carc);
-		arcHVol.erase(larc);
-		arcHVol.erase(marc);
-
-	}
-
-	std::map<arc_t,arcDat> &arcHVol;
-
-private:
-	const std::vector<scalar_t>  &nodeFuncs;
-	const std::vector<char>      &nodeType;
-	std::map<arc_t,arcDat> arcHVol_;
-
-};
 
 
 void contourtree::simplifyHyperVolume(
@@ -665,7 +633,7 @@ void contourtree::simplifyHyperVolume(
 
 	ENSURES(featureWtFunc.arcHVol.size() == 1);
 
-	for(auto &wt: wts)	wt/= featureWtFunc.arcHVol.begin()->second.hv;
+	for(auto &wt: wts)	wt/= featureWtFunc.arcHVol.begin()->second[1];
 
 }
 
