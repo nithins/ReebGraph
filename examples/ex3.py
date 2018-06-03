@@ -24,38 +24,41 @@ class ReebgraphModel(QObject):
         QObject.__init__(self, parent)
         self.ods = np.copy(dataset)
         self.ds  = dataset
-        self.nodes,self.arcs,self.arcmap  = pyrg.computeCT_Grid3D(self.ds)
-        print len(self.nodes)
-        print len(self.arcs)
         
-        self.sorder,self.swts,self.shier  = pyrg.simplifyCT_Pers(self.nodes,self.arcs)
+        self.rg = pyrg.ContourTree()
+        self.rg.computeGrid3D(self.ds)
+        self.rg.computeFeatureHierarchy()
+                
+        print len(self.rg.nodes)
+        print len(self.rg.arcs)
+        
         self.arcTree = self.make_arcTree()        
 
     def get_type(self,a,b):
         """
         Returns the type of arc a,b. min-sad, sad-sad, sad-max. 
         """
-        return ("min" if self.nodes[a]["type"] == 1 else "sad") +"-" + ("max" if self.nodes[b]["type"] == 2 else "sad")
+        return ("min" if self.rg.nodes[a]["type"] == 1 else "sad") +"-" + ("max" if self.rg.nodes[b]["type"] == 2 else "sad")
 
     def make_arcTree(self) :
         
         arcTree = {}
         
-        for a,b in self.arcs:
+        for a,b in self.rg.arcs:
             arcTree[a,b] = {
                 "name":str((a,b)),
-                "pers":float(self.nodes[b]["fn"] - self.nodes[a]["fn"]),
+                "pers":float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(a,b),
                 "weight":1.0,
                 "par": None,
                 "selected":False,
                 }
                                  
-        for (t,c,m,a,b),w in zip(self.shier,self.swts):
+        for (t,c,m,a,b),w in zip(self.rg.fhier,self.rg.fwts):
             
             arcTree[(a,b)] = {
                 "name":str((a,b)),
-                "pers":float(self.nodes[b]["fn"] - self.nodes[a]["fn"]),
+                "pers":float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(a,b),
                 "weight":1.0,
                 "par": None,
@@ -72,10 +75,10 @@ class ReebgraphModel(QObject):
 
     def adjust_ds(self):
                     
-        arcRemap = np.zeros(len(self.arcs),np.float32)
+        arcRemap = np.zeros(len(self.rg.arcs),np.float32)
         
-        for ano in range(len(self.arcs)):
-            a,b = tuple(map(int,self.arcs[ano]))
+        for ano in range(len(self.rg.arcs)):
+            a,b = tuple(map(int,self.rg.arcs[ano]))
             
             n  = self.arcTree[a,b]
             s  = n["selected"]
@@ -84,7 +87,7 @@ class ReebgraphModel(QObject):
                 s |= n["selected"]
             arcRemap[ano] = s
             
-        self.ds[:] = self.ods*arcRemap[self.arcmap]
+        self.ds[:] = self.ods*arcRemap[self.rg.arcmap]
         self.dsChanged.emit()
 
 
@@ -93,13 +96,13 @@ class ReebgraphModel(QObject):
     def json(self):
         import json
         
-        nodes,arcs = self.nodes,self.arcs
+        nodes,arcs = self.rg.nodes,self.rg.arcs
 
         rng   = [float(nodes["fn"].min()),float(nodes["fn"].max())]                
         nodes = [ {"id":i, "name":str(n["id"]), "fn":float(n["fn"]),"group":int(n["type"]), "weight":1.0 } for i,n in enumerate(nodes)]
         links = [ {"source":arc[0], "target":arc[1]} for arc in arcs ]
         
-        for (a,b),w in zip(self.sorder,self.swts):
+        for (a,b),w in zip(self.rg.farcs,self.rg.fwts):
             nodes[a]["weight"] = float(w);
             nodes[b]["weight"] = float(w);
 
@@ -110,18 +113,18 @@ class ReebgraphModel(QObject):
     def hierTree_json(self):
         import json
         
-        nodes,arcs = self.nodes,self.arcs
+        nodes,arcs = self.rg.nodes,self.rg.arcs
         
         arcTreeTD = {}
         
-        for a,b in self.arcs:
+        for a,b in self.rg.arcs:
             a,b = int(a),int(b)
                         
             arcTreeTD[str((a,b))] = {
                 "name":str((a,b)),
                 #"size":float(nodes[b]["fn"] - nodes[a]["fn"]),
                 #"size":10,
-                "size":1 + 100*float(self.nodes[b]["fn"] - self.nodes[a]["fn"]),
+                "size":1 + 100*float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(a,b),
                 "weight":1.0,
                 "selected":self.arcTree[(a,b)]["selected"],
@@ -129,7 +132,7 @@ class ReebgraphModel(QObject):
         
         
                                  
-        for (t,c,m,d,u),w in zip(self.shier,self.swts):
+        for (t,c,m,d,u),w in zip(self.rg.fhier,self.rg.fwts):
                         
             clu = str((c,m) if t == 0 else (m,c)); m_u = str((m,u));  d_m = str((d,m)); d_u = str((d,u))
             

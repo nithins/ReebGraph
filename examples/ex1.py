@@ -48,19 +48,21 @@ def main():
             dataset = np.load(fn)["arr_0"]
     else:
         dataset = make_function()
+        
+        
+    ct = rg.ContourTree()
+    help(ct)
+
+    ct.computeGrid3D(dataset)
+    ct.computeFeatureHierarchy()
+    print ct.nodes
+    print ct.arcs
+    print ct.fwts
+    print ct.fhier
+    print ct.farcs
+    
             
     
-    nodes,arcs,amap =  rg.computeCT_Grid3D(dataset)
-    aseq,awts,fh  = rg.simplifyCT_Pers(nodes,arcs)
-
-    
-    print
-    print nodes
-    print arcs    
-    print aseq
-    print awts
-    print fh
-
 
     
 

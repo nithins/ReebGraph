@@ -219,7 +219,7 @@ class MainWindow(QtGui.QMainWindow):
         self.dataset = create_3gauss() if dataset is None else dataset
         
         # Compute Reeb graph
-        self.rg = pyrg.computeCT_Grid3D(self.dataset)        
+        #self.rg = pyrg.computeCT_Grid3D(self.dataset)        
         
         # Create UI 
         self.frame = QtGui.QFrame()

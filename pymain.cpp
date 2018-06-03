@@ -4,6 +4,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include "utl.h"
 #include "Grid3D.hpp"
@@ -15,49 +16,9 @@
 #include "Persistence.hpp"
 
 using namespace contourtree;
-
+using namespace pybind11::literals;
 
 namespace py=pybind11;
-
-py::tuple simplifyContourTree(ContourTree &ct) {
-
-    std::vector<int64_t> nodeids;
-    std::vector<scalar_t> nodefns;
-    std::vector<char> nodeTypes;
-    std::vector<int64_t> arcs;
-    std::vector<uint32_t> arcMap;
-	arcMap.resize(ct.nv);
-
-	ct.output(nodeids,nodefns,nodeTypes,arcs,arcMap.data());
-
-    std::cout << SVAR(nodeids.size()) << std::endl;
-    std::cout << SVAR(nodefns.size()) << std::endl;
-    std::cout << SVAR(nodeTypes.size()) << std::endl;
-    std::cout << SVAR(arcs.size()) << std::endl;
-    std::cout << SVAR(arcMap.size()) << std::endl;
-
-
-    ContourTreeData ctdata;
-    ctdata.loadData(nodeids,nodefns,nodeTypes,arcs);
-
-    SimplifyCT sim;
-    sim.setInput(&ctdata);
-
-    Persistence simfn(ctdata);
-    sim.simplify(&simfn);
-
-    std::vector<uint32_t> order;
-    std::vector<float>   wts;
-
-    sim.outputOrder(order,wts);
-
-    return py::make_tuple(py::array(order.size(),order.data()),
-                          py::array(wts.size(),wts.data()));
-
-
-
-}
-
 
 struct py_icoord {
     int x;
@@ -73,112 +34,134 @@ struct py_node {
 };
 
 
-py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
 
-    size_t X = grid.shape(2);
-    size_t Y = grid.shape(1);
-    size_t Z = grid.shape(0);
+typedef contourtree::arc_t arc_t;
 
+typedef contourtree::arc_t py_arc;
 
-	Grid3D g(grid.mutable_data(),X,Y,Z);
-
-    MergeTree mt;
-    mt.computeTree(&g,TypeContourTree);
-
-    std::vector<int64_t> nodeids;
-    std::vector<scalar_t> nodefns;
-    std::vector<char> nodeTypes;
-
-	typedef contourtree::arc_t arc_t;
-
-
-	std::vector<arc_t> arcs;
+struct py_ContourTree {
+	py::array_t<py_node>  nodes;
+	py::array_t<int64_t>  arcs;
 	py::array_t<uint32_t> arcMap;
 
-    arcMap.resize({Z,Y,X});
-    auto arcMapPtr = arcMap.mutable_data();
 
-    {
-		std::vector<int64_t> carcs;
-
-		mt.ctree.output(nodeids,nodefns,nodeTypes,carcs,arcMapPtr);
-
-        std::map<int64_t,int64_t> idToNodeNum;
-        for(int i = 0; i < nodeids.size(); ++i )
-            idToNodeNum[nodeids[i]] = i;
-
-		for(int i = 0 ; i < carcs.size(); i+=2)
-			arcs.push_back({idToNodeNum[carcs[i]],idToNodeNum[carcs[i+1]]});
-    }
+	py::array_t<float>    fwts;
+	py::array_t<uint32_t> fhier;
+	py::array_t<int64_t>  farcs;
 
 
-    auto arcRemap1 = contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
+	bool computeGrid3D(py::array_t<scalar_t> &grid,float presimpThresh){
 
-    auto arcRemap2 = contourtree::preSimplifyPers(nodeids,nodefns,nodeTypes,arcs);
-
-    for(int i = 0 ; i < X*Y*Z; ++i)
-        arcMapPtr[i] = arcRemap2[arcRemap1[arcMapPtr[i]]];
-
-
-    std::vector<py_node> nodes(nodeids.size());
-
-    for(int i = 0; i < nodes.size(); ++i ) {
-        int id = nodeids[i];
-        nodes[i].id = id;
-        nodes[i].crd.x = id%X;
-        nodes[i].crd.y = (id/X)%Y;
-        nodes[i].crd.z = (id/(X*Y))%Z;
-        nodes[i].fn = nodefns[i];
-        nodes[i].type = nodeTypes[i];
-    }
+		size_t X = grid.shape(2);
+		size_t Y = grid.shape(1);
+		size_t Z = grid.shape(0);
 
 
-    std::cout << SVAR(arcMap.size()) << std::endl;
+		Grid3D g(grid.mutable_data(),X,Y,Z);
 
-    auto nodes_   = py::array(nodes.size(),nodes.data());
-	auto arcs_    = py::array(arcs.size()*2,&arcs[0].first);
-	arcs_.resize({arcs.size(),size_t(2)},true);
+		MergeTree mt;
+		mt.computeTree(&g,TypeContourTree);
 
-	return py::make_tuple(nodes_,arcs_,arcMap);
-}
+		std::vector<int64_t> nodeids;
+		std::vector<scalar_t> nodefns;
+		std::vector<char> nodeTypes;
 
-py::tuple simplifyCT_Pers(py::array_t<py_node> &nodes_, py::array_t<int64_t> &arcs_){
 
-	std::vector<int64_t> nodeids;
-	std::vector<scalar_t> nodefns;
-	std::vector<char> nodeTypes;
-	std::vector<arc_t> arcs;
+		std::vector<py_node> nodes;
+		std::vector<arc_t> arcs;
 
-	for(int i = 0; i < nodes_.size(); ++i ) {
-		nodeids.push_back(nodes_.at(i).id);
-		nodefns.push_back(nodes_.at(i).fn);
-		nodeTypes.push_back(nodes_.at(i).type);
+
+		arcMap.resize({Z,Y,X});
+		auto arcMapPtr = arcMap.mutable_data();
+
+		{
+			std::vector<int64_t> carcs;
+
+			mt.ctree.output(nodeids,nodefns,nodeTypes,carcs,arcMapPtr);
+
+			std::map<int64_t,int64_t> idToNodeNum;
+			for(int i = 0; i < nodeids.size(); ++i )
+				idToNodeNum[nodeids[i]] = i;
+
+			for(int i = 0 ; i < carcs.size(); i+=2)
+				arcs.push_back({idToNodeNum[carcs[i]],idToNodeNum[carcs[i+1]]});
+		}
+
+
+		auto arcRemap1 = contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
+
+		if(presimpThresh >= 0) {
+
+			auto arcRemap2 = contourtree::preSimplifyPers(nodeids,nodefns,nodeTypes,arcs,presimpThresh);
+			for(int i = 0 ; i < X*Y*Z; ++i)
+				arcMapPtr[i] = arcRemap2[arcRemap1[arcMapPtr[i]]];
+		}
+		else{
+			for(int i = 0 ; i < X*Y*Z; ++i)
+				arcMapPtr[i] = arcRemap1[arcMapPtr[i]];
+		}
+
+
+
+
+
+		nodes.resize(nodeids.size());
+
+		for(int i = 0; i < nodes.size(); ++i ) {
+			int id = nodeids[i];
+			nodes[i].id = id;
+			nodes[i].crd.x = id%X;
+			nodes[i].crd.y = (id/X)%Y;
+			nodes[i].crd.z = (id/(X*Y))%Z;
+			nodes[i].fn = nodefns[i];
+			nodes[i].type = nodeTypes[i];
+		}
+
+		this->nodes = py::array(nodes.size(),nodes.data());
+		this->arcs  = py::array({arcs.size(),size_t(2)},&arcs[0].first);
+
+
+		return true;
 	}
 
-    for(int i = 0 ; i < arcs_.shape(0); ++i) {
-		arcs.push_back({arcs_.at(i,0),arcs_.at(i,1)});
-    }
+	bool computeFeatureHierarchy(){
 
-    std::vector<float>   wts;
-	std::vector<arc_t>    carcs;
-    std::vector<uint32_t> featureHierarchy;
-	std::vector<arc_t>    sarcs;
-	contourtree::simplifyPers(nodefns,nodeTypes,arcs,carcs,wts,featureHierarchy,sarcs);
+		std::vector<int64_t> nodeids;
+		std::vector<scalar_t> nodefns;
+		std::vector<char> nodeTypes;
+		std::vector<arc_t> arcs;
 
-	ENSURES(sarcs.size() == 1) <<SVAR(sarcs.size());
-	ENSURES(wts.size() == carcs.size() && wts.size() == (featureHierarchy.size()/5))
-			<<SVAR(wts.size()) << SVAR(carcs.size()) << SVAR(featureHierarchy.size());
+		for(int i = 0; i < nodes.size(); ++i ) {
+			nodeids.push_back(nodes.at(i).id);
+			nodefns.push_back(nodes.at(i).fn);
+			nodeTypes.push_back(nodes.at(i).type);
+		}
 
-    wts.push_back(1.0);
-	carcs.push_back({sarcs.front().first,sarcs.back().second});
+		for(int i = 0 ; i < this->arcs.shape(0); ++i) {
+			arcs.push_back({this->arcs.at(i,0),this->arcs.at(i,1)});
+		}
+
+		std::vector<float>    wts;
+		std::vector<arc_t>    carcs;
+		std::vector<uint32_t> featureHierarchy;
+		std::vector<arc_t>    sarcs;
+		contourtree::simplifyPers(nodefns,nodeTypes,arcs,carcs,wts,featureHierarchy,sarcs);
+
+		ENSURES(sarcs.size() == 1) <<SVAR(sarcs.size());
+		ENSURES(wts.size() == carcs.size() && wts.size() == (featureHierarchy.size()/5))
+				<<SVAR(wts.size()) << SVAR(carcs.size()) << SVAR(featureHierarchy.size());
+
+		wts.push_back(1.0);
+		carcs.push_back({sarcs.front().first,sarcs.back().second});
 
 
-	return py::make_tuple(py::array({wts.size(),(size_t)2},&carcs[0].first),
-                          py::array(wts.size(),wts.data()),
-                          py::array({wts.size()-1,(size_t)5},featureHierarchy.data())
-                          );
+		this->farcs = py::array({wts.size(),(size_t)2},&carcs[0].first);
+		this->fwts  = py::array(wts.size(),wts.data());
+		this->fhier = py::array({wts.size()-1,(size_t)5},featureHierarchy.data());
+		return true;
+	}
+};
 
-}
 
 
 PYBIND11_MODULE(pyrg, m) {
@@ -208,25 +191,18 @@ PYBIND11_MODULE(pyrg, m) {
             })
     ;
 
+	py::class_<py_ContourTree>(m, "ContourTree","Computation of Contour trees and their features")
+			.def(py::init<>())
+			.def("computeGrid3D",&py_ContourTree::computeGrid3D,"grid"_a,"presimpThresh"_a=0.001)
+			.def_readonly("nodes",&py_ContourTree::nodes,"nodes of the contour tree")
+			.def_readonly("arcs",&py_ContourTree::arcs,"arcs of the contour tree")
+			.def_readonly("arcmap",&py_ContourTree::arcMap,"mapping from vertices of the domain into arcs ")
 
-
-
-    py::class_<MergeTree>(m, "MergeTree", py::buffer_protocol())
-            .def(py::init<>())
-            .def("computeContourTree",[](MergeTree& mt,Grid3D& grid)->void
-            {std::cout << SVAR(&mt) << std::endl;mt.computeTree(&grid,TypeContourTree);})
-
-            .def("computeJoinTree",[](MergeTree& ct,Grid3D& grid)->void{ct.computeTree(&grid,TypeJoinTree);})
-            .def("computeSplitTree",[](MergeTree& mt,Grid3D& grid)->void{
-                std::cout << SVAR(&mt) << std::endl;
-                mt.computeTree(&grid,TypeSplitTree);})
-            .def("genPersistenceHierarchy",[](MergeTree &mt){
-                std::cout << SVAR(&mt) << std::endl;
-                return simplifyContourTree(mt.ctree);})
-    ;
-
-    m.def("computeCT_Grid3D",&computeCT_Grid3D,"Compute the contour tree on a structured3D grid");
-	m.def("simplifyCT_Pers",&simplifyCT_Pers,"Simplify contour tree using persistence");
+			.def("computeFeatureHierarchy",&py_ContourTree::computeFeatureHierarchy)
+			.def_readonly("farcs",&py_ContourTree::farcs,"Feature arcs a.k.a brach decomposition")
+			.def_readonly("fhier",&py_ContourTree::fhier,"Feature hierarchy ")
+			.def_readonly("fwts",&py_ContourTree::fwts,"Feature Weights ")
+			;
 
 
 }
