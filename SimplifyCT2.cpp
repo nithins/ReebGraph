@@ -363,9 +363,14 @@ struct ArcParentRecorder {
 
     const std::vector<char> &nodeType;
 	std::map<arc_t,arc_t>   &arcParent;
+	std::vector<arc_t>      &numToArc;
 
 	ArcParentRecorder(const std::vector<char>  &nodeType,const std::vector<arc_t> & arcs)
-		:nodeType(nodeType),arcParent(_arcParent){
+		:nodeType(nodeType)
+		,arcParent(_arcParent)
+		,numToArc(_numToArc)
+	{
+		numToArc = arcs;
 		for(auto arc: arcs)
 			arcParent[arc] = arc_t(-1,-1);
     }
@@ -374,6 +379,22 @@ struct ArcParentRecorder {
         while(arcParent.at(arc) != arc_t(-1,-1)) {arc = arcParent.at(arc);}
         return arc;
     }
+
+	std::vector<int64_t> getArcnumToSarcnum (const std::vector<arc_t> & sarcs) {
+
+		std::map<arc_t,int64_t> sarcToNum;
+		for(int i = 0 ; i < sarcs.size(); i++ )
+			sarcToNum[sarcs[i]] = i;
+
+
+		std::vector<int64_t> ArcnumToSarcnum;
+		for(size_t i =0; i < numToArc.size(); ++i)
+			ArcnumToSarcnum.push_back(sarcToNum.at(getParent(numToArc[i])));
+
+		return ArcnumToSarcnum;
+
+	}
+
 
     void operator()(arc_t arc,arc_t narc){
         auto sad = (nodeType[arc.second] == contourtree::MAXIMUM) ? (arc.first) :(arc.second);
@@ -395,6 +416,7 @@ struct ArcParentRecorder {
 
 private:
 	std::map<arc_t,arc_t>   _arcParent;
+	std::vector<arc_t> _numToArc;
 
 };
 
@@ -506,28 +528,20 @@ std::vector<int64_t>  contourtree::preSimplifyPers(
     ENSURES(nodeType.size() == nodeFuncs.size() && nodeFuncs.size() == nodeType.size());
 
     auto getPersistence   = PersistenceFunction{nodeFuncs,true};
-	auto recordArcParent  = ArcParentRecorder{nodeType,arcs};
+	auto arcParentRecord  = ArcParentRecorder{nodeType,arcs};
 
-	auto simpKernel = contourTreeSimplificationKernel{getPersistence,recordArcParent,
+	auto simpKernel = contourTreeSimplificationKernel{getPersistence,arcParentRecord,
             [&](arc_t arc)->bool{return preSimpThresh < getPersistence(arc);}};
 
 
-	std::vector<arc_t> oldArcs = arcs;
 
 	arcs = simpKernel(nodeType,arcs);
 
-    std::map<arc_t,int64_t> newArcToNum;
-	for(int i = 0 ; i < arcs.size(); i++ )
-		newArcToNum[arcs[i]] = i;
-
-
-    std::vector<int64_t> oldArcNumToNewArcNum;
-	for(size_t i =0; i < oldArcs.size(); ++i)
-		oldArcNumToNewArcNum.push_back(newArcToNum.at(recordArcParent.getParent(oldArcs[i])));
+	auto rmap = arcParentRecord.getArcnumToSarcnum(arcs);
 
 	sqeezeCT(nodeIds,nodeFuncs,nodeType,arcs);
 
-    return oldArcNumToNewArcNum;
+	return rmap;
 }
 
 struct HyperVolumeFunction {
