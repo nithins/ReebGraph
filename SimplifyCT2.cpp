@@ -260,21 +260,16 @@ struct contourTreeSimplificationKernel {
         // Less than comparator.. It'll be properly inverted in the priority queue
         auto compareArcs = [&](arc_t a, arc_t b) {
 
-    //        //a < b is true
-    //        if(canCancel(a) && !canCancel(b))
-    //            return true;
+			if(canCancel(a) && canCancel(b)) {
 
-    //        //a < b is false
-    //        if(canCancel(b) && !canCancel(a))
-    //            return false;
+				auto fda = getFeatureWeight(a);
+				auto fdb = getFeatureWeight(b);
 
-            auto fda = getFeatureWeight(a);
-            auto fdb = getFeatureWeight(b);
+				if (fda != fdb)
+					return fda < fdb;
+			}
 
-            if (fda != fdb)
-                return fda < fdb;
-
-            if(a.first != b.first)
+			if(a.first != b.first)
                 return a.first < b.first;
 
             if(a.second != b.second)
@@ -303,9 +298,9 @@ struct contourTreeSimplificationKernel {
                     break;
 
                 auto narc = doCancel(arc);
-                pq.push(narc);
                 doneCancellation(arc,narc);
-            }
+				pq.push(narc);
+			}
         }
 
 		std::vector<arc_t> sarcs;
@@ -426,11 +421,11 @@ struct WeightsRecorder {
 void contourtree::simplifyPers(
         const std::vector<scalar_t>  &nodeFuncs,
         const std::vector<char>      &nodeType,
-		const std::vector<arc_t>   &arcsInt64,
+		const std::vector<arc_t>   &arcs,
 		std::vector<arc_t>    &carcs,
         std::vector<float>    &wts,
         std::vector<uint32_t> &featureHierarchy,
-		std::vector<arc_t>    &sarcsInt64, // Surviving arcs
+		std::vector<arc_t>    &sarcs, // Surviving arcs
         int reqNumFeatures,
         float reqPers
         )
@@ -445,7 +440,7 @@ void contourtree::simplifyPers(
     auto recordWeight    = WeightsRecorder{wts};
 
     // Book keeping after a cancellation
-	int curNumFeatures = arcsInt64.size()/2;
+	int curNumFeatures = arcs.size();
     auto doneCancel = [&](arc_t arc,arc_t narc)
     {
         recordHierarchy(arc,narc);
@@ -460,7 +455,7 @@ void contourtree::simplifyPers(
 
     auto simpKernel = contourTreeSimplificationKernel{getPersistence,doneCancel,stopCancel};
 
-	sarcsInt64 = simpKernel(nodeType,arcsInt64);
+	sarcs = simpKernel(nodeType,arcs);
 
 }
 
@@ -534,6 +529,132 @@ std::vector<int64_t>  contourtree::preSimplifyPers(
 
     return oldArcNumToNewArcNum;
 }
+
+struct HyperVolumeFunction {
+
+	struct arcDat {
+		scalar_t v;
+		scalar_t hv;
+	};
+
+
+	scalar_t fd(arc_t a) const{
+		auto r = nodeFuncs[a.second] - nodeFuncs[a.first];
+		ENSURES(r >= 0); return r;
+	}
+
+
+	HyperVolumeFunction(const std::vector<scalar_t>  &nodeFuncs,
+						const std::vector<char>      &nodeType,
+						const std::vector<arc_t> & arcs,
+						const std::vector<float> & arcVols)
+		:nodeFuncs(nodeFuncs)
+		,nodeType(nodeType)
+		,arcHVol(arcHVol_)
+	{
+		int i=0;
+		for(auto arc: arcs){
+			auto v = arcVols[i++];
+			arcHVol[arc] = {v,fd(arc)*v};
+		}
+	}
+
+
+	scalar_t operator()(arc_t a) const{
+		return arcHVol.at(a).hv;
+	}
+
+	void operator()(arc_t carc, arc_t narc){
+
+		// Saddle Max carc
+		arc_t larc = {carc.first,narc.second};
+		arc_t marc = {narc.first,carc.first};
+
+		// Saddle Min Carc
+		if(nodeType[carc.first] == contourtree::MINIMUM){
+			larc = {narc.first,carc.second};
+			marc = {carc.second,narc.second};
+		}
+
+		ENSURES(arcHVol.count(carc) == 1 &&
+				arcHVol.count(larc) == 1 &&
+				arcHVol.count(marc) == 1 &&
+				arcHVol.count(narc) == 0);
+
+		float v = 0
+				+ arcHVol[carc].v
+				+ arcHVol[larc].v
+				+ arcHVol[marc].v;
+
+		float hv = 0
+				+ arcHVol[carc].hv + arcHVol[carc].v*fd(marc)
+				+ arcHVol[larc].hv + arcHVol[larc].v*fd(marc)
+				+ arcHVol[marc].hv;
+
+		arcHVol[narc] = {v,hv};
+
+		arcHVol.erase(carc);
+		arcHVol.erase(larc);
+		arcHVol.erase(marc);
+
+	}
+
+	std::map<arc_t,arcDat> &arcHVol;
+
+private:
+	const std::vector<scalar_t>  &nodeFuncs;
+	const std::vector<char>      &nodeType;
+	std::map<arc_t,arcDat> arcHVol_;
+
+};
+
+
+void contourtree::simplifyHyperVolume(
+		const std::vector<scalar_t>  &nodeFuncs,
+		const std::vector<char>      &nodeType,
+		const std::vector<arc_t>   &arcs,
+		const std::vector<float>   &arcVols,
+		std::vector<arc_t>    &carcs,
+		std::vector<float>    &wts,
+		std::vector<uint32_t> &featureHierarchy,
+		std::vector<arc_t>    &sarcs, // Surviving arcs
+		int reqNumFeatures
+		)
+ {
+
+	ENSURES(nodeType.size() == nodeFuncs.size());
+
+	// Feature wts
+	auto featureWtFunc   = HyperVolumeFunction{nodeFuncs,nodeType,arcs,arcVols};
+	auto recordHierarchy = HierarchyRecorder{featureHierarchy,nodeType};
+	auto recordOrder     = OrderRecorder{carcs};
+	auto recordWeight    = WeightsRecorder{wts};
+
+	// Book keeping after a cancellation
+	int curNumFeatures = arcs.size();
+	auto doneCancel = [&](arc_t arc,arc_t narc)
+	{
+		recordHierarchy(arc,narc);
+		recordOrder(arc);
+		recordWeight(arc,featureWtFunc(arc));
+		featureWtFunc(arc,narc);
+		curNumFeatures -=2;
+	};
+
+	auto stopCancel = [&](arc_t arc)->bool {
+		return curNumFeatures <= reqNumFeatures ;
+	};
+
+	auto simpKernel = contourTreeSimplificationKernel{featureWtFunc,doneCancel,stopCancel};
+
+	sarcs = simpKernel(nodeType,arcs);
+
+	ENSURES(featureWtFunc.arcHVol.size() == 1);
+
+	for(auto &wt: wts)	wt/= featureWtFunc.arcHVol.begin()->second.hv;
+
+}
+
 
 
 

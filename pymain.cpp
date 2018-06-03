@@ -145,7 +145,29 @@ struct py_ContourTree {
 		std::vector<arc_t>    carcs;
 		std::vector<uint32_t> featureHierarchy;
 		std::vector<arc_t>    sarcs;
-		contourtree::simplifyPers(nodefns,nodeTypes,arcs,carcs,wts,featureHierarchy,sarcs);
+
+
+		if(0) {
+
+
+			contourtree::simplifyPers(nodefns,nodeTypes,arcs,carcs,wts,featureHierarchy,sarcs);
+
+		}
+		else {
+			std::vector<float> arcVols(arcs.size(),0);
+
+			auto numArcMap = arcMap.size();
+
+			for(int i = 0 ; i < numArcMap; ++i){
+				auto ai = *(arcMap.data() + i);
+				ENSURES( 0 <= ai && ai < arcs.size());
+				arcVols[ai]++;
+			}
+
+			contourtree::simplifyHyperVolume(nodefns,nodeTypes,arcs,arcVols,
+											 carcs,wts,featureHierarchy,sarcs);
+
+		}
 
 		ENSURES(sarcs.size() == 1) <<SVAR(sarcs.size());
 		ENSURES(wts.size() == carcs.size() && wts.size() == (featureHierarchy.size()/5))

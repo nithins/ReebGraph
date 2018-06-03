@@ -26,7 +26,7 @@ class ReebgraphModel(QObject):
         self.ds  = dataset
         
         self.rg = pyrg.ContourTree()
-        self.rg.computeGrid3D(self.ds)
+        self.rg.computeGrid3D(self.ds,presimpThresh=0.1)
         self.rg.computeFeatureHierarchy()
                 
         print len(self.rg.nodes)
