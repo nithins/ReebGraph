@@ -219,6 +219,13 @@ namespace std {
 	{
 		detail::print_tuple<0>(os, tup); return os;
 	}
+
+	template <typename T1, typename T2>
+	static inline std::ostream & operator<<(std::ostream & os, std::pair<T1, T2> const& p) {
+		os<< "std::pair{" << p.first << ", " << p.second  << "}";
+		return os;
+	}
+
 }
 
 namespace utl {

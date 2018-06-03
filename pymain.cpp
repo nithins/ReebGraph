@@ -89,24 +89,28 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
     std::vector<scalar_t> nodefns;
     std::vector<char> nodeTypes;
 
-    std::vector<int64_t> arcs;
+	typedef contourtree::arc_t arc_t;
+
+
+	std::vector<arc_t> arcs;
 	py::array_t<uint32_t> arcMap;
 
     arcMap.resize({Z,Y,X});
     auto arcMapPtr = arcMap.mutable_data();
 
     {
+		std::vector<int64_t> carcs;
 
-        mt.ctree.output(nodeids,nodefns,nodeTypes,arcs,arcMapPtr);
+		mt.ctree.output(nodeids,nodefns,nodeTypes,carcs,arcMapPtr);
 
         std::map<int64_t,int64_t> idToNodeNum;
         for(int i = 0; i < nodeids.size(); ++i )
             idToNodeNum[nodeids[i]] = i;
-        for(auto &a: arcs)
-            a = idToNodeNum[a];
+
+		for(int i = 0 ; i < carcs.size(); i+=2)
+			arcs.push_back({idToNodeNum[carcs[i]],idToNodeNum[carcs[i+1]]});
     }
 
-    typedef std::pair<int64_t,int64_t> arc_t;
 
     auto arcRemap1 = contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
 
@@ -132,8 +136,8 @@ py::tuple computeCT_Grid3D(py::array_t<scalar_t> &grid){
     std::cout << SVAR(arcMap.size()) << std::endl;
 
     auto nodes_   = py::array(nodes.size(),nodes.data());
-    auto arcs_    = py::array(arcs.size(),arcs.data());
-    arcs_.resize({arcs.size()/2,size_t(2)},true);
+	auto arcs_    = py::array(arcs.size()*2,&arcs[0].first);
+	arcs_.resize({arcs.size(),size_t(2)},true);
 
 	return py::make_tuple(nodes_,arcs_,arcMap);
 }
@@ -143,7 +147,7 @@ py::tuple simplifyCT_Pers(py::array_t<py_node> &nodes_, py::array_t<int64_t> &ar
 	std::vector<int64_t> nodeids;
 	std::vector<scalar_t> nodefns;
 	std::vector<char> nodeTypes;
-	std::vector<int64_t> arcs;
+	std::vector<arc_t> arcs;
 
 	for(int i = 0; i < nodes_.size(); ++i ) {
 		nodeids.push_back(nodes_.at(i).id);
@@ -152,26 +156,24 @@ py::tuple simplifyCT_Pers(py::array_t<py_node> &nodes_, py::array_t<int64_t> &ar
 	}
 
     for(int i = 0 ; i < arcs_.shape(0); ++i) {
-        arcs.push_back(arcs_.at(i,0));
-        arcs.push_back(arcs_.at(i,1));
+		arcs.push_back({arcs_.at(i,0),arcs_.at(i,1)});
     }
 
     std::vector<float>   wts;
-    std::vector<uint32_t> orderPairs;
+	std::vector<arc_t>    carcs;
     std::vector<uint32_t> featureHierarchy;
-    std::vector<int64_t>  sarcs;
-    contourtree::simplifyPers(nodefns,nodeTypes,arcs,orderPairs,wts,featureHierarchy,sarcs);
+	std::vector<arc_t>    sarcs;
+	contourtree::simplifyPers(nodefns,nodeTypes,arcs,carcs,wts,featureHierarchy,sarcs);
 
-    ENSURES(sarcs.size() == 2) <<SVAR(sarcs.size());
-    ENSURES(wts.size() == orderPairs.size()/2 && wts.size() == (featureHierarchy.size()/5))
-            <<SVAR(wts.size()) << SVAR(orderPairs.size()) << SVAR(featureHierarchy.size());
+	ENSURES(sarcs.size() == 1) <<SVAR(sarcs.size());
+	ENSURES(wts.size() == carcs.size() && wts.size() == (featureHierarchy.size()/5))
+			<<SVAR(wts.size()) << SVAR(carcs.size()) << SVAR(featureHierarchy.size());
 
     wts.push_back(1.0);
-    orderPairs.push_back(sarcs.front());
-    orderPairs.push_back(sarcs.back());
+	carcs.push_back({sarcs.front().first,sarcs.back().second});
 
 
-    return py::make_tuple(py::array({wts.size(),(size_t)2},orderPairs.data()),
+	return py::make_tuple(py::array({wts.size(),(size_t)2},&carcs[0].first),
                           py::array(wts.size(),wts.data()),
                           py::array({wts.size()-1,(size_t)5},featureHierarchy.data())
                           );

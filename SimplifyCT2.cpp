@@ -7,23 +7,21 @@
 
 using namespace  std;
 
-typedef pair<int64_t,int64_t> arc_t;
-
-
 std::vector<int64_t> contourtree::splitMonkeysAndNazis(
     std::vector<int64_t>   &nodeids,
     std::vector<scalar_t>  &nodeFuncs,
     std::vector<char>      &nodeType,
-    std::vector<int64_t>   &arcs)
+	std::vector<arc_t>     &arcs)
 {
 
     int numNodes = nodeFuncs.size();
-    int numArcs  = arcs.size()/2;
+	int numArcs  = arcs.size();
 
+	ENSURES(numNodes == numArcs + 1);
 
     std::vector<arc_t> oldArcNumToNodeIdPairs;
-    for(int i = 0 ; i < arcs.size(); i+=2)
-        oldArcNumToNodeIdPairs.push_back(std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]]));
+	for(int i = 0 ; i < arcs.size(); i++)
+		oldArcNumToNodeIdPairs.push_back(std::make_pair(nodeids[arcs[i].first],nodeids[arcs[i].second]));
 
 
     vector<vector<int64_t>> nodeUp(numNodes);
@@ -40,8 +38,8 @@ std::vector<int64_t> contourtree::splitMonkeysAndNazis(
     };
 
     for(int64_t i = 0 ; i < numArcs; ++i){
-        auto a = arcs[i*2];
-        auto b = arcs[i*2+1];
+		auto a = arcs[i].first;
+		auto b = arcs[i].second;
 
         nodeUp[a].push_back(b);
         nodeDown[b].push_back(a);
@@ -109,22 +107,21 @@ std::vector<int64_t> contourtree::splitMonkeysAndNazis(
         ENSURES(nodeUp[i].size() + nodeDown[i].size() == 3 || nodeUp[i].size() + nodeDown[i].size() == 1);
     }
 
-    arcs.clear();
+	arcs.clear();
     for(int i = 0 ; i < numNodes; ++i) {
         for(int j = 0 ; j < nodeUp[i].size(); ++j)
         {
-            arcs.push_back(i);
-            arcs.push_back(nodeUp[i][j]);
+			arcs.push_back({i,nodeUp[i][j]});
         }
     }
 
-    numArcs = arcs.size()/2;
+	numArcs = arcs.size();
 
     ENSURES(numArcs+1 == numNodes);
 
     std::map<arc_t,int64_t> nodeIdPairsToNewArcNum;
-    for(int i = 0 ; i < arcs.size(); i+=2)
-        nodeIdPairsToNewArcNum[std::make_pair(nodeids[arcs[i]],nodeids[arcs[i+1]])] = i/2;
+	for(int i = 0 ; i < arcs.size(); i++)
+		nodeIdPairsToNewArcNum[std::make_pair(nodeids[arcs[i].first],nodeids[arcs[i].second])] = i;
 
     std::vector<int64_t> oldArcNumToNewArcNum;
     for(int i = 0 ; i < oldArcNumToNodeIdPairs.size(); ++i)
@@ -132,6 +129,9 @@ std::vector<int64_t> contourtree::splitMonkeysAndNazis(
 
     return oldArcNumToNewArcNum;
 }
+
+typedef contourtree::arc_t arc_t;
+
 
 /// \brief the generic simplification kernel
 struct contourTreeSimplificationKernel {
@@ -149,22 +149,22 @@ struct contourTreeSimplificationKernel {
 
     /// \brief the actual cancellation procedure
     /// \returns the set of arcs that survive after cancellation
-    std::vector<int64_t>  operator()
-    (const std::vector<char>  &nodeType,const std::vector<int64_t>   &arcs)
+	std::vector<arc_t>  operator()
+	(const std::vector<char>  &nodeType,const std::vector<arc_t>   &arcs)
     {
 
 
         size_t numNodes = nodeType.size();
-        size_t numArcs  = arcs.size()/2;
+		size_t numArcs  = arcs.size();
         ENSURES(numArcs +1 == numNodes);
 
 
         // Form a directed graph
         vector<vector<int64_t>> nodeUp(nodeType.size());
         vector<vector<int64_t>> nodeDown(nodeType.size());
-        for(int i = 0 ; i < arcs.size(); i+= 2){
-            auto a = arcs[i];
-            auto b = arcs[i+1];
+		for(auto arc: arcs){
+			auto a = arc.first;
+			auto b = arc.second;
 
             nodeUp[a].push_back(b);
             nodeDown[b].push_back(a);
@@ -288,8 +288,8 @@ struct contourTreeSimplificationKernel {
         priority_queue<arc_t,std::vector<arc_t>,std::function<bool(arc_t,arc_t)>>
                 pq([&](arc_t a, arc_t b)->bool{return compareArcs(b,a);});
 
-        for(int i = 0 ; i < arcs.size(); i += 2) {
-            pq.push({arcs[i],arcs[i+1]});
+		for(auto arc: arcs){
+			pq.push(arc);
         }
 
         // Go forth and cancel 'em all.
@@ -308,14 +308,13 @@ struct contourTreeSimplificationKernel {
             }
         }
 
-        std::vector<int64_t> sarcs;
+		std::vector<arc_t> sarcs;
 
         for(int i =0 ; i < nodeIsCacelled.size(); ++i)
             if(!nodeIsCacelled[i])
                 for(auto j: nodeUp[i]){
                     ENSURES(!nodeIsCacelled[j]);
-                    sarcs.push_back(i);
-                    sarcs.push_back(j);
+					sarcs.push_back({i,j});
                 }
 
         return sarcs;
@@ -365,38 +364,15 @@ struct HierarchyRecorder {
     }
 };
 
-namespace  std {
-
-template <typename T>
-struct tag : std::reference_wrapper<T> {
-    using std::reference_wrapper<T>::reference_wrapper;
-};
-
-using tag_ostream = tag<std::ostream>;
-
-template <typename T1, typename T2>
-static inline std::ostream & operator<<(std::ostream & os, std::pair<T1, T2> const& p) {
-    os<< "std::pair{" << p.first << ", " << p.second  << "}";
-    return os;
-}
-
-//template <typename Other>
-//static inline std::ostream & operator<<(std::ostream & os, Other const& o) {
-//    os<< o;
-//    return os;
-//}
-
-}
-
 struct ArcParentRecorder {
 
     const std::vector<char> &nodeType;
-    std::map<arc_t,arc_t>   arcParent;
+	std::map<arc_t,arc_t>   &arcParent;
 
-    ArcParentRecorder(const std::vector<char>  &nodeType,const std::vector<int64_t> & arcs)
-        :nodeType(nodeType){
-        for(int i = 0 ; i < arcs.size() ;i+=2  )
-            arcParent[make_pair(arcs[i],arcs[i+1])] = arc_t(-1,-1);
+	ArcParentRecorder(const std::vector<char>  &nodeType,const std::vector<arc_t> & arcs)
+		:nodeType(nodeType),arcParent(_arcParent){
+		for(auto arc: arcs)
+			arcParent[arc] = arc_t(-1,-1);
     }
 
     arc_t getParent(arc_t arc) const{
@@ -421,15 +397,18 @@ struct ArcParentRecorder {
         arcParent[narc] = arc_t(-1,-1);
 
     }
+
+private:
+	std::map<arc_t,arc_t>   _arcParent;
+
 };
 
 struct OrderRecorder {
 
-    std::vector<uint32_t> &orderPairs;
+	std::vector<arc_t> &carcs;
 
     void operator()(arc_t arc){
-        orderPairs.push_back(arc.first);
-        orderPairs.push_back(arc.second);
+		carcs.push_back(arc);
     }
 };
 
@@ -447,11 +426,11 @@ struct WeightsRecorder {
 void contourtree::simplifyPers(
         const std::vector<scalar_t>  &nodeFuncs,
         const std::vector<char>      &nodeType,
-        const std::vector<int64_t>   &arcs,
-        std::vector<uint32_t> &orderPairs,
+		const std::vector<arc_t>   &arcsInt64,
+		std::vector<arc_t>    &carcs,
         std::vector<float>    &wts,
         std::vector<uint32_t> &featureHierarchy,
-        std::vector<int64_t>  &sarcs, // Surviving arcs
+		std::vector<arc_t>    &sarcsInt64, // Surviving arcs
         int reqNumFeatures,
         float reqPers
         )
@@ -462,11 +441,11 @@ void contourtree::simplifyPers(
     // Persistence
     auto getPersistence  = PersistenceFunction{nodeFuncs,true};
     auto recordHierarchy = HierarchyRecorder{featureHierarchy,nodeType};
-    auto recordOrder     = OrderRecorder{orderPairs};
+	auto recordOrder     = OrderRecorder{carcs};
     auto recordWeight    = WeightsRecorder{wts};
 
     // Book keeping after a cancellation
-    int curNumFeatures = arcs.size()/2;
+	int curNumFeatures = arcsInt64.size()/2;
     auto doneCancel = [&](arc_t arc,arc_t narc)
     {
         recordHierarchy(arc,narc);
@@ -481,7 +460,7 @@ void contourtree::simplifyPers(
 
     auto simpKernel = contourTreeSimplificationKernel{getPersistence,doneCancel,stopCancel};
 
-    sarcs = simpKernel(nodeType,arcs);
+	sarcsInt64 = simpKernel(nodeType,arcsInt64);
 
 }
 
@@ -489,14 +468,15 @@ void contourtree::sqeezeCT(
         std::vector<int64_t>   &nodeIds,
         std::vector<scalar_t>  &nodeFuncs,
         std::vector<char>      &nodeTypes,
-        std::vector<int64_t>   &sarcs
+		std::vector<arc_t>     &sarcs
         )
 {
     std::vector<int32_t> nodeRemap(nodeIds.size(),-1);
     int nsurv = 0;
-    for(auto i : sarcs)
-        if(nodeRemap[i] == -1)
-            nodeRemap[i] = nsurv++;
+	for(auto sarc : sarcs)
+		for(auto i: {sarc.first,sarc.second})
+			if(nodeRemap[i] == -1)
+				nodeRemap[i] = nsurv++;
 
     std::vector<int64_t> nodeids_(nsurv);
     std::vector<scalar_t> nodefns_(nsurv);
@@ -510,7 +490,7 @@ void contourtree::sqeezeCT(
         }
 
     for(auto &a : sarcs)
-        a = nodeRemap[a];
+		a = {nodeRemap[a.first],nodeRemap[a.second]};
 
     nodeIds   = nodeids_;
     nodeFuncs   = nodefns_;
@@ -522,7 +502,7 @@ std::vector<int64_t>  contourtree::preSimplifyPers(
         std::vector<int64_t>         &nodeIds,
         std::vector<scalar_t>        &nodeFuncs,
         std::vector<char>            &nodeType,
-        std::vector<int64_t>         &arcs,
+		std::vector<arc_t>           &arcs,
         float preSimpThresh
         )
 {
@@ -531,29 +511,26 @@ std::vector<int64_t>  contourtree::preSimplifyPers(
     ENSURES(nodeType.size() == nodeFuncs.size() && nodeFuncs.size() == nodeType.size());
 
     auto getPersistence   = PersistenceFunction{nodeFuncs,true};
-    auto recordArcParent  = ArcParentRecorder{nodeType,arcs};
+	auto recordArcParent  = ArcParentRecorder{nodeType,arcs};
 
-    auto simpKernel = contourTreeSimplificationKernel{getPersistence,
-            [&](arc_t arc,arc_t narc){recordArcParent(arc,narc);},
+	auto simpKernel = contourTreeSimplificationKernel{getPersistence,recordArcParent,
             [&](arc_t arc)->bool{return preSimpThresh < getPersistence(arc);}};
 
 
-    std::vector<arc_t> numToOldArc;
-    for(int i = 0 ; i < arcs.size(); i+=2)
-        numToOldArc.push_back(std::make_pair(arcs[i],arcs[i+1]));
+	std::vector<arc_t> oldArcs = arcs;
 
-    arcs = simpKernel(nodeType,arcs);
+	arcs = simpKernel(nodeType,arcs);
 
     std::map<arc_t,int64_t> newArcToNum;
-    for(int i = 0 ; i < arcs.size(); i+=2 )
-        newArcToNum[std::make_pair(arcs[i],arcs[i+1])] = i/2;
+	for(int i = 0 ; i < arcs.size(); i++ )
+		newArcToNum[arcs[i]] = i;
 
 
     std::vector<int64_t> oldArcNumToNewArcNum;
-    for(size_t i =0; i < numToOldArc.size(); ++i)
-        oldArcNumToNewArcNum.push_back(newArcToNum.at(recordArcParent.getParent(numToOldArc[i])));
+	for(size_t i =0; i < oldArcs.size(); ++i)
+		oldArcNumToNewArcNum.push_back(newArcToNum.at(recordArcParent.getParent(oldArcs[i])));
 
-    sqeezeCT(nodeIds,nodeFuncs,nodeType,arcs);
+	sqeezeCT(nodeIds,nodeFuncs,nodeType,arcs);
 
     return oldArcNumToNewArcNum;
 }

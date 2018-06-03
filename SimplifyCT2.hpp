@@ -11,15 +11,18 @@
 
 namespace contourtree {
 
+typedef std::pair<int64_t,int64_t> arc_t;
+
+
 /// \brief Simpler implementation of Persistence simplification
 void simplifyPers(
         const std::vector<scalar_t>  &nodeFuncs,
         const std::vector<char>      &nodeType,
-        const std::vector<int64_t>   &arcs,
-        std::vector<uint32_t>        &orderPairs,
+		const std::vector<arc_t>     &arcs,
+		std::vector<arc_t>           &carcs, // Cancellation arcs
         std::vector<float>           &wts,
         std::vector<uint32_t>        &featureHierarchy,
-        std::vector<int64_t>         &sarcs, // Surviving arcs
+		std::vector<arc_t>           &sarcs, // Surviving arcs
         int reqNumFeatures=-1,
         float reqPersThresh = 1
         );
@@ -30,7 +33,7 @@ std::vector<int64_t> splitMonkeysAndNazis(
         std::vector<int64_t>   &nodeids,
         std::vector<scalar_t>  &nodeFuncs,
         std::vector<char>      &nodeType,
-        std::vector<int64_t>   &arcs
+		std::vector<arc_t>     &arcs
         );
 
 /// \brief Given a set of arcs (that survive after cancellation),
@@ -39,7 +42,7 @@ void sqeezeCT(
         std::vector<int64_t>         &nodeIds,
         std::vector<scalar_t>        &nodeFuncs,
         std::vector<char>            &nodeTypes,
-        std::vector<int64_t>         &sarcs
+		std::vector<arc_t>           &sarcs
         );
 
 /// \brief Simplification variant intended for presimplification using persistence
@@ -49,7 +52,7 @@ std::vector<int64_t>  preSimplifyPers(
         std::vector<int64_t>         &nodeIds,
         std::vector<scalar_t>        &nodeFuncs,
         std::vector<char>            &nodeType,
-        std::vector<int64_t>         &arcs,
+		std::vector<arc_t>           &arcs,
         float preSimpThreshNorm = 0.01
         );
 
