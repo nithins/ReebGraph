@@ -334,7 +334,8 @@ HyperVolumeFunction::HyperVolumeFunction
  const std::vector<float>     &arcVols)
 	:nodeFuncs(nodeFuncs)
 	,nodeType(nodeType)
-	,arcHVol(arcHVol_)
+    ,arcHVol_(new arcHVol_t)
+    ,arcHVol(*arcHVol_.get())
 {
 	int i=0;
 	for(auto arc: arcs){
@@ -401,6 +402,18 @@ struct HierarchyRecorder {
     }
 };
 
+/// \brief Record the parent of an arc after cancellation/deletion
+///
+/// \remarks The member arcParent and numToArc are references to private members. It is
+///          done for the following reason.
+///
+///          When setting up the simplification kernel, the compiler will pass a copy of
+///          this functor to the kernel. When this happens, all callbacks will be made
+///          only on the copy and NOT the object created before setting up the kernel.
+///          By keeping them as references, when the compiler creates a copy of this class,
+///          the arcParent and numToArc members in the copy will reference the original
+///          functor's members. Thus all updates made on the copy will reflect in the original.
+///
 struct ArcParentRecorder {
 
     const std::vector<char> &nodeType;
@@ -557,25 +570,42 @@ void contourtree::sqeezeCT(
 }
 
 
-std::vector<int64_t>  contourtree::preSimplifyPers(
+std::vector<int64_t>  contourtree::preSimplify(
         std::vector<int64_t>         &nodeIds,
         std::vector<scalar_t>        &nodeFuncs,
         std::vector<char>            &nodeType,
-		std::vector<arc_t>           &arcs,
-        float preSimpThresh
-        )
+        std::vector<arc_t>           &arcs,
+        std::vector<float>           &arcVols,
+        std::string smethod,
+        float preSimpThresh,
+        int reqNumFeatures)
 {
 
-
     ENSURES(nodeType.size() == nodeFuncs.size() && nodeFuncs.size() == nodeType.size());
+    ENSURES(smethod == "PersT" || smethod == "PersN" || smethod == "HvolN" ) << SVAR(smethod);
 
-    auto getPersistence   = PersistenceFunction{nodeFuncs,true};
-	auto arcParentRecord  = ArcParentRecorder{nodeType,arcs};
+    auto arcParentRecord  = ArcParentRecorder{nodeType,arcs};
+    int curNumFeatures = arcs.size();
 
-	auto simpKernel = contourTreeSimplificationKernel{getPersistence,arcParentRecord,
-            [&](arc_t arc)->bool{return preSimpThresh < getPersistence(arc);}};
+    std::function<scalar_t(arc_t)> getFeatureWt
+            = PersistenceFunction{nodeFuncs,true};
 
+    std::function<bool(arc_t)>     stopCancel
+            = [&](arc_t)->bool {return curNumFeatures <= reqNumFeatures;};
 
+    std::function<void(arc_t arc,arc_t narc)>  doneCancel
+            = [&](arc_t arc,arc_t narc){arcParentRecord(arc,narc);curNumFeatures -= 2;};
+
+    if (smethod == "PersT")
+        stopCancel = [&](arc_t arc)->bool {return preSimpThresh < getFeatureWt(arc);};
+
+    if(smethod == "HvolN"){
+        auto hvf = HyperVolumeFunction{nodeFuncs,nodeType,arcs,arcVols};
+        doneCancel = [=](arc_t arc,arc_t narc) mutable {doneCancel(arc,narc);hvf(arc,narc);};
+        getFeatureWt = hvf;
+    }
+
+    auto simpKernel = contourTreeSimplificationKernel{getFeatureWt,doneCancel,stopCancel};
 
 	arcs = simpKernel(nodeType,arcs);
 
@@ -631,9 +661,9 @@ void contourtree::simplifyHyperVolume(
 
 	sarcs = simpKernel(nodeType,arcs);
 
-	ENSURES(featureWtFunc.arcHVol.size() == 1);
+    ENSURES(featureWtFunc.getArcHVol().size() == 1);
 
-	for(auto &wt: wts)	wt/= featureWtFunc.arcHVol.begin()->second[1];
+    for(auto &wt: wts)	wt/= featureWtFunc.getArcHVol().begin()->second[1];
 
 }
 

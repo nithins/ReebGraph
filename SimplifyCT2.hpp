@@ -6,6 +6,7 @@
 #include <vector>
 #include <functional>
 #include <array>
+#include <memory>
 
 namespace contourtree {
 
@@ -50,6 +51,8 @@ private:
 /// \brief functor object to compute HyperVolume function on arcs
 struct HyperVolumeFunction {
 
+    typedef std::map<arc_t,std::array<float,2> > arcHVol_t;
+
 	/// \brief Ctor
 	HyperVolumeFunction(const std::vector<scalar_t>  &nodeFuncs,
 						const std::vector<char>      &nodeType,
@@ -62,13 +65,20 @@ struct HyperVolumeFunction {
 	/// \brief self update after cancellation
 	void operator()(arc_t carc, arc_t narc);
 
-	std::map<arc_t,std::array<float,2> > &arcHVol;
+    /// \brief arc hvols
+    inline const arcHVol_t & getArcHVol(){return arcHVol;}
 
 private:
-	const std::vector<scalar_t>         &nodeFuncs;
-	const std::vector<char>             &nodeType;
-	std::map<arc_t,std::array<float,2> >  arcHVol_;
-	scalar_t fd(arc_t a) const;
+
+
+    const std::vector<scalar_t>         &nodeFuncs;
+    const std::vector<char>             &nodeType;
+
+    std::shared_ptr<arcHVol_t> arcHVol_;
+    arcHVol_t                 &arcHVol;
+
+    scalar_t fd(arc_t a) const;
+
 };
 
 
@@ -91,16 +101,18 @@ void sqeezeCT(
 		std::vector<arc_t>           &sarcs
         );
 
-/// \brief Simplification variant intended for presimplification using persistence
+/// \brief Simplification variant intended for presimplification
 ///        All cancelled nodes will be eliminated
 /// \returns a mapping from old arc idxs to new arc idxs
-std::vector<int64_t>  preSimplifyPers(
+std::vector<int64_t>  preSimplify(
         std::vector<int64_t>         &nodeIds,
         std::vector<scalar_t>        &nodeFuncs,
         std::vector<char>            &nodeType,
-		std::vector<arc_t>           &arcs,
-        float preSimpThreshNorm = 0.01
-        );
+        std::vector<arc_t>           &arcs,
+        std::vector<float>           &arcVols,
+        std::string smethod,
+        float preSimpThresh,
+        int reqNumFeatures);
 
 
 /// \brief Simpler implementation of Persistence simplification

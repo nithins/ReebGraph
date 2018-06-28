@@ -26,8 +26,8 @@ class ReebgraphModel(QObject):
         self.ds  = dataset
         
         self.rg = pyrg.ContourTree()
-        self.rg.computeGrid3D(self.ds,presimpThresh=0.1)
-        self.rg.computeFeatureHierarchy()
+        self.rg.computeGrid3D(self.ds,smethod="HvolN",N=500)
+        self.rg.computeFeatureHierarchy(smethod="Hvol")
                 
         print len(self.rg.nodes)
         print len(self.rg.arcs)
@@ -213,7 +213,7 @@ class WebViewWindow(QtGui.QWidget):
         if rgm != None:
             self.rgm = rgm        
                         
-        self.view.setUrl(QUrl("force2.html"))
+        self.view.setUrl(QUrl("packLayout.html"))
 
     def setupInspector(self):
         page = self.view.page()
@@ -238,7 +238,8 @@ class MainWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self, parent)
         
         # Create Dataset
-        self.dataset = create_3gauss() if dataset is None else dataset   
+        self.dataset = create_3gauss() if dataset is None else dataset
+        print self.dataset.shape
                         
         # Create UI        
         self.splitter = QtGui.QSplitter(self)
@@ -281,7 +282,8 @@ def main():
             np.savez(fn.replace(".vti",".npz"),dataset)
             
         if fn.endswith(".npz"):
-            dataset = np.load(fn)["arr_0"]
+            dataset = np.load(fn)["arr_0"]       
+    
 
     app = QtGui.QApplication(sys.argv)
  

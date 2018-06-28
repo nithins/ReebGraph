@@ -39,7 +39,7 @@ typedef contourtree::arc_t arc_t;
 
 typedef contourtree::arc_t py_arc;
 
-struct py_ContourTree {
+struct pyContourTree {
 	py::array_t<py_node>  nodes;
 	py::array_t<int64_t>  arcs;
 	py::array_t<uint32_t> arcMap;
@@ -50,7 +50,11 @@ struct py_ContourTree {
 	py::array_t<int64_t>  farcs;
 
 
-	bool computeGrid3D(py::array_t<scalar_t> &grid,float presimpThresh){
+    bool computeGrid3D(py::array_t<scalar_t> &grid,std::string smethod,float T, int N)
+    {
+
+        ENSURES(smethod == "PersT" || smethod == "PersN" || smethod == "HvolN" || smethod == "" ) << SVAR(smethod);
+
 
 		size_t X = grid.shape(2);
 		size_t Y = grid.shape(1);
@@ -88,20 +92,30 @@ struct py_ContourTree {
 		}
 
 
-		auto arcRemap1 = contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
+        auto arcRemap = contourtree::splitMonkeysAndNazis(nodeids,nodefns,nodeTypes,arcs);
 
-		if(presimpThresh >= 0) {
+        if(!smethod.empty()) {
 
-			auto arcRemap2 = contourtree::preSimplifyPers(nodeids,nodefns,nodeTypes,arcs,presimpThresh);
-			for(int i = 0 ; i < X*Y*Z; ++i)
-				arcMapPtr[i] = arcRemap2[arcRemap1[arcMapPtr[i]]];
+            std::vector<float> arcVols(arcs.size(),0);
+
+            if(smethod == "HvolN") {
+                for(int i = 0 ; i < arcMap.size(); ++i){
+                    auto ai = *(arcMap.data() + i);
+                    ENSURES( 0 <= ai && ai < arcRemap.size());
+                    arcVols[arcRemap[ai]]++;
+                }
+            }
+
+            auto arcRemap2 = contourtree::preSimplify(nodeids,nodefns,nodeTypes,arcs,arcVols,smethod,T,N);
+
+            for(int i = 0 ; i < arcRemap.size(); ++i)
+                arcRemap[i] = arcRemap2[arcRemap[i]];
+
 		}
-		else{
-			for(int i = 0 ; i < X*Y*Z; ++i)
-				arcMapPtr[i] = arcRemap1[arcMapPtr[i]];
-		}
 
 
+        for(int i = 0 ; i < X*Y*Z; ++i)
+            arcMapPtr[i] = arcRemap[arcMapPtr[i]];
 
 
 
@@ -124,7 +138,7 @@ struct py_ContourTree {
 		return true;
 	}
 
-	bool computeFeatureHierarchy(){
+    bool computeFeatureHierarchy(std::string smethod) {
 
 		std::vector<int64_t> nodeids;
 		std::vector<scalar_t> nodefns;
@@ -147,13 +161,14 @@ struct py_ContourTree {
 		std::vector<arc_t>    sarcs;
 
 
-		if(0) {
+        if(smethod == "Pers") {
 
 
 			contourtree::simplifyPers(nodefns,nodeTypes,arcs,carcs,wts,featureHierarchy,sarcs);
 
 		}
-		else {
+        else if(smethod == "Hvol")
+        {
 			std::vector<float> arcVols(arcs.size(),0);
 
 			auto numArcMap = arcMap.size();
@@ -168,6 +183,9 @@ struct py_ContourTree {
 											 carcs,wts,featureHierarchy,sarcs);
 
 		}
+        else {
+            ENSURES(false) << "Unknown simp method" << SVAR(smethod) ;
+        }
 
 		ENSURES(sarcs.size() == 1) <<SVAR(sarcs.size());
 		ENSURES(wts.size() == carcs.size() && wts.size() == (featureHierarchy.size()/5))
@@ -213,17 +231,17 @@ PYBIND11_MODULE(pyrg, m) {
             })
     ;
 
-	py::class_<py_ContourTree>(m, "ContourTree","Computation of Contour trees and their features")
+    py::class_<pyContourTree>(m, "ContourTree","Computation of Contour trees and their features")
 			.def(py::init<>())
-			.def("computeGrid3D",&py_ContourTree::computeGrid3D,"grid"_a,"presimpThresh"_a=0.001)
-			.def_readonly("nodes",&py_ContourTree::nodes,"nodes of the contour tree")
-			.def_readonly("arcs",&py_ContourTree::arcs,"arcs of the contour tree")
-			.def_readonly("arcmap",&py_ContourTree::arcMap,"mapping from vertices of the domain into arcs ")
+            .def("computeGrid3D",&pyContourTree::computeGrid3D,"grid"_a,"smethod"_a="PersT","T"_a=0.001,"N"_a=1000)
+            .def_readonly("nodes",&pyContourTree::nodes,"nodes of the contour tree")
+            .def_readonly("arcs",&pyContourTree::arcs,"arcs of the contour tree")
+            .def_readonly("arcmap",&pyContourTree::arcMap,"mapping from vertices of the domain into arcs ")
 
-			.def("computeFeatureHierarchy",&py_ContourTree::computeFeatureHierarchy)
-			.def_readonly("farcs",&py_ContourTree::farcs,"Feature arcs a.k.a brach decomposition")
-			.def_readonly("fhier",&py_ContourTree::fhier,"Feature hierarchy ")
-			.def_readonly("fwts",&py_ContourTree::fwts,"Feature Weights ")
+            .def("computeFeatureHierarchy",&pyContourTree::computeFeatureHierarchy,"smethod"_a="Hvol")
+            .def_readonly("farcs",&pyContourTree::farcs,"Feature arcs a.k.a brach decomposition")
+            .def_readonly("fhier",&pyContourTree::fhier,"Feature hierarchy ")
+            .def_readonly("fwts",&pyContourTree::fwts,"Feature Weights ")
 			;
 
 
