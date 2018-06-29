@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+
+<body>
+
+<h3> Dataset </h3>
+
+FileName:<input type="input" value="" title="filename" id="filename"/><br>
+Size:<input type="text" value="0:0:0" id="shape" style="background-color: #72A4A2" readonly><br>
+Subsample:<input type="input" value="1:1:1" id="subsampling"/><br>
+
+
+<h3> Reebgraph computation </h3>
+
+Hierarchy Type:
+<select id="smethod">
+  <option value="Hvol">Hvol</option>
+  <option value="Pers">Pers</option>
+</select><br>
+
+
+Presimplification Type:
+<select onchange="PresimpMethodChanged()" id="psmethod">
+  <option value="HvolN">HvolN</option>
+  <option value="PersT">PersT</option>
+  <option value="PersN">PersN</option>
+</select><br>
+
+<div id="N"> N:<input type="input" value="1000" title="N" id="Nval"/></div>
+<div id="T"> T:<input type="input" value="0.01" title="T" id="Tval"/></div><br>
+
+<input type="button" onclick="ReloadModel()" value="Compute" /><br>
+
+<h3> Volume Rendering </h3>
+Spacing:<input type="input" value="1:1:1" id="spacing"/><br>
+
+
+<h3> Layouts </h3>
+
+<input type="button" onclick="location.href='force.html';" value="Reebgraph ForceLayout" />
+<input type="button" onclick="location.href='packLayout.html';" value="PackLayout" />
+
+<script>
+
+function PresimpMethodChanged(){
+
+    if($("#psmethod").val() == "PersT") {
+        $("#T").css("display", "block")
+        $("#N").css("display", "none")
+    }
+    else {
+        $("#T").css("display", "none")
+        $("#N").css("display", "block")
+    }
+}
+
+function onReload() {
+
+    PresimpMethodChanged()
+    
+    var ds = JSON.parse(app.ds_json())
+    
+     $("#filename").val(ds.filename)
+     $("#subsampling").val(ds.subsampling)
+     $("#spacing").val(ds.spacing)
+     $("#shape").val(ds.shape)
+}
+
+
+function ReloadModel(){
+
+    var ds = {
+        filename:   "" + $("#filename").val(),
+        spacing:    "" + $("#spacing").val(),
+        subsampling:"" + $("#subsampling").val(),
+        smethod:    "" + $("#smethod").val(),
+        psmethod:   "" + $("#psmethod").val(),
+        N:0 + $("#Nval").val(),
+        T:0.0 + $("#Tval").val(),
+    }
+   
+    app.reloadModel(JSON.stringify(ds))
+}
+
+
+onReload();
+
+
+</script>
+</body>

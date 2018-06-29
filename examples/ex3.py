@@ -10,6 +10,7 @@ import pyrg
 import vtk
 
 from ex2 import create_3gauss,VolumeRenderPipeine,read_vti
+import json,attrdict
 
 
 class ReebgraphModel(QObject):
@@ -94,7 +95,6 @@ class ReebgraphModel(QObject):
     
     @pyqtSlot(result=str)
     def json(self):
-        import json
         
         nodes,arcs = self.rg.nodes,self.rg.arcs
 
@@ -111,7 +111,6 @@ class ReebgraphModel(QObject):
 
     @pyqtSlot(result=str)
     def hierTree_json(self):
-        import json
         
         nodes,arcs = self.rg.nodes,self.rg.arcs
         
@@ -206,14 +205,19 @@ class WebViewWindow(QtGui.QWidget):
     def addJsObjects(self):
         if self.rgm != None:
             self.view.page().mainFrame().addToJavaScriptWindowObject("rgm", self.rgm)
+        if self.app != None:
+            self.view.page().mainFrame().addToJavaScriptWindowObject("app", self.app)
         
         
-    def refresh(self,rgm=None):
+    def refresh(self,rgm=None,app=None):
         
-        if rgm != None:
-            self.rgm = rgm        
-                        
-        self.view.setUrl(QUrl("packLayout.html"))
+        if rgm is not None:
+            self.rgm = rgm
+        
+        if app is not None:
+            self.app = app
+            
+        self.view.setUrl(QUrl("params.html"))
 
     def setupInspector(self):
         page = self.view.page()
@@ -229,17 +233,83 @@ class WebViewWindow(QtGui.QWidget):
     def toggleInspector(self):
         self.webInspector.setVisible(not self.webInspector.isVisible())
 
-
-        
+       
 class MainWindow(QtGui.QMainWindow):
     
- 
-    def __init__(self, parent = None, dataset=None):
-        QtGui.QMainWindow.__init__(self, parent)
+    dsinfo = attrdict.AttrDict(
+        filename="",
+        subsampling = (2,2,1),
+        spacing = (1,1,1),
+        smethod = "Hvol",
+        psmethod="HvolN",
+        shape = (0,0,0),
+        T=0.001,
+        N=1000,
+        )
+    
+    
+    rgm = None
+    dataset = None
+    
+    
+    @pyqtSlot(result=str)
+    def ds_json(self):
+        return json.dumps(self.dsinfo)
+
         
-        # Create Dataset
-        self.dataset = create_3gauss() if dataset is None else dataset
-        print self.dataset.shape
+    
+    @pyqtSlot(str)
+    def reloadModel(self,ds_json):
+        
+        dsinfo_ = json.loads(str(ds_json))        
+        dsinfo  = self.dsinfo
+        
+        dsinfo.update((k, dsinfo_[k]) for k in set(dsinfo).intersection(dsinfo_))
+        
+        
+        
+        if isinstance(dsinfo.subsampling,unicode) :
+            dsinfo.subsampling = map(int,dsinfo.subsampling.split(","))            
+
+        if isinstance(dsinfo.spacing,unicode):
+            dsinfo.spacing = map(float,dsinfo.spacing.split(","))
+        
+      
+        if dsinfo.filename.endswith(".vti"):            
+            vd = read_vti(self.dsinfo.filename)
+            self.dataset = vd.arr[::dsinfo.subsampling[2],::dsinfo.subsampling[1],::dsinfo.subsampling[0]].copy()
+            dsinfo.spacing = vd.spacing
+            dsinfo.shape = vd.shape[::-1]
+            
+            #np.savez(self.filename.replace(".vti",".npz"),self.dataset)
+            
+        #if self.filename.endswith(".npz"):
+            #self.dataset = np.load(self.filename)["arr_0"]
+
+        
+        if self.dataset is not None:        
+            self.rgm = ReebgraphModel(self.dataset,self)
+            
+            self.webview.refresh(self.rgm)
+            
+            ## Create Volume Render pipeline
+            self.vrPipe = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow())
+            
+            self.vrPipe.setSpacing(tuple(s*m for s,m in zip(dsinfo.spacing,dsinfo.subsampling)))
+            
+            self.rgm.dsChanged.connect(self.vrPipe.reloadData)
+        
+            self.webview.refresh(self.rgm,app=self)
+
+        
+    
+    
+ 
+    def __init__(self, parent = None, filename=""):
+        QtGui.QMainWindow.__init__(self, parent)   
+        
+        self.dsinfo.filename = filename
+
                         
         # Create UI        
         self.splitter = QtGui.QSplitter(self)
@@ -260,34 +330,17 @@ class MainWindow(QtGui.QMainWindow):
         
         self.show()
         
-        self.rgm = ReebgraphModel(self.dataset,self)
+        #self.reloadModel("")
+        self.webview.refresh(self.rgm,app=self)
         
-        self.webview.refresh(self.rgm)
-        
-        ## Create Volume Render pipeline
-        self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow())
-        
-        self.rgm.dsChanged.connect(self.volumeRenderPipeline.reloadData)
 
          
 
 def main():
-    dataset = None
-    
-    if len(sys.argv) >1:
-        fn = sys.argv[1]
-        
-        if fn.endswith(".vti"):
-            dataset = read_vti(fn)
-            np.savez(fn.replace(".vti",".npz"),dataset)
-            
-        if fn.endswith(".npz"):
-            dataset = np.load(fn)["arr_0"]       
-    
 
     app = QtGui.QApplication(sys.argv)
  
-    window = MainWindow(dataset=dataset)
+    window = MainWindow(filename="" if sys.argv <=1 else sys.argv[1])
  
     sys.exit(app.exec_())
     

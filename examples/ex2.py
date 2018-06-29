@@ -6,6 +6,7 @@ from PyQt4 import QtCore, QtGui
 from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import numpy as np
 import pyrg
+import attrdict
 
 def create_3gauss():
     """
@@ -57,17 +58,14 @@ def read_vti(f):
     reader.Update();   
     
     
-    imageData = reader.GetOutput()
+    imageData = reader.GetOutput()    
     
     dim = tuple(reversed(imageData.GetDimensions()))    
     arr = nps.vtk_to_numpy(imageData.GetPointData().GetArray(0))
     arr = np.array(arr,np.float32).reshape(dim)
     arr = (arr - arr.min())/(arr.max() - arr.min())
-    arr = arr[::2,::2,::2].copy()
     
-    print arr.shape
-   
-    return arr
+    return attrdict.AttrDict(arr=arr,shape=arr.shape,spacing=imageData.GetSpacing())
 
 
 
@@ -170,7 +168,11 @@ class VolumeRenderPipeine:
         self.imageData.Modified()
         #self.imageData.Update()
         self.volumeMapper.Update()
-        self.renderWindow.Render()       
+        self.renderWindow.Render()
+        
+    def setSpacing(self,v):
+        self.imageData.SetSpacing(v)
+        self.reloadData()
 
 
 class ReebgraphRenderPipeline:
