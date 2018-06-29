@@ -50,6 +50,30 @@ struct pyContourTree {
 	py::array_t<int64_t>  farcs;
 
 
+    static py::tuple pickle(const pyContourTree & pct){
+        return py::make_tuple(
+                    pct.nodes,
+                    pct.arcs,
+                    pct.arcMap,
+                    pct.fwts,
+                    pct.fhier,
+                    pct.farcs);
+    }
+
+    static pyContourTree unpickle(py::tuple t){
+        ENSURES(t.size() == 6);
+        pyContourTree pct;
+        pct.nodes  = t[0].cast<decltype(nodes)>();
+        pct.arcs   = t[1].cast<decltype(arcs)>();
+        pct.arcMap = t[2].cast<decltype(arcMap)>();
+        pct.fwts   = t[3].cast<decltype(fwts)>();
+        pct.fhier  = t[4].cast<decltype(fhier)>();
+        pct.farcs  = t[5].cast<decltype(farcs)>();
+        return pct;
+    }
+
+
+
     bool computeGrid3D(py::array_t<scalar_t> &grid,std::string smethod,float T, int N)
     {
 
@@ -242,7 +266,9 @@ PYBIND11_MODULE(pyrg, m) {
             .def_readonly("farcs",&pyContourTree::farcs,"Feature arcs a.k.a brach decomposition")
             .def_readonly("fhier",&pyContourTree::fhier,"Feature hierarchy ")
             .def_readonly("fwts",&pyContourTree::fwts,"Feature Weights ")
-			;
+
+            .def(py::pickle(&pyContourTree::pickle,&pyContourTree::unpickle))
+            ;
 
 
 }

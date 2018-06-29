@@ -9,9 +9,9 @@
 
 <h3> Dataset </h3>
 
-FileName:<input type="input" value="" title="filename" id="filename"/><br>
-Size:<input type="text" value="0:0:0" id="shape" style="background-color: #72A4A2" readonly><br>
-Subsample:<input type="input" value="1:1:1" id="subsampling"/><br>
+FileName:<input type="input" value="" title="filename: .vti files are accepted" id="filename"/><br>
+Size:<input type="text" value="0,0,0" id="shape" style="background-color: #72A4A2" readonly><br>
+Subsample:<input type="input" value="1,1,1" id="subsampling"/><br>
 
 
 <h3> Reebgraph computation </h3>
@@ -33,10 +33,12 @@ Presimplification Type:
 <div id="N"> N:<input type="input" value="1000" title="N" id="Nval"/></div>
 <div id="T"> T:<input type="input" value="0.01" title="T" id="Tval"/></div><br>
 
-<input type="button" onclick="ReloadModel()" value="Compute" /><br>
+<input type="button" onclick="ReloadModel(true)" value="Compute" />
+<input type="button" onclick="app.save()" value="Save" />
+<input type="button" onclick="ReloadModel(false)" value="Load" />
 
 <h3> Volume Rendering </h3>
-Spacing:<input type="input" value="1:1:1" id="spacing"/><br>
+Spacing:<input type="input" value="1,1,1" id="spacing"/><br>
 
 
 <h3> Layouts </h3>
@@ -71,7 +73,7 @@ function onReload() {
 }
 
 
-function ReloadModel(){
+function ReloadModel(recompute){
 
     var ds = {
         filename:   "" + $("#filename").val(),
@@ -81,6 +83,7 @@ function ReloadModel(){
         psmethod:   "" + $("#psmethod").val(),
         N:0 + $("#Nval").val(),
         T:0.0 + $("#Tval").val(),
+        recompute:recompute
     }
    
     app.reloadModel(JSON.stringify(ds))

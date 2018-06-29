@@ -11,6 +11,7 @@ import vtk
 
 from ex2 import create_3gauss,VolumeRenderPipeine,read_vti
 import json,attrdict
+import cPickle as pickle
 
 
 class ReebgraphModel(QObject):
@@ -21,17 +22,11 @@ class ReebgraphModel(QObject):
     
     dsChanged = pyqtSignal()    
 
-    def __init__(self, dataset, parent = None):
+    def __init__(self, dataset,rg, parent = None):
         QObject.__init__(self, parent)
         self.ods = np.copy(dataset)
-        self.ds  = dataset
-        
-        self.rg = pyrg.ContourTree()
-        self.rg.computeGrid3D(self.ds,smethod="HvolN",N=500)
-        self.rg.computeFeatureHierarchy(smethod="Hvol")
-                
-        print len(self.rg.nodes)
-        print len(self.rg.arcs)
+        self.ds  = dataset        
+        self.rg  = rg
         
         self.arcTree = self.make_arcTree()        
 
@@ -255,51 +250,67 @@ class MainWindow(QtGui.QMainWindow):
     @pyqtSlot(result=str)
     def ds_json(self):
         return json.dumps(self.dsinfo)
+    
+    
+    @pyqtSlot()
+    def save(self):        
+        pickle.dump([self.dsinfo,self.dataset,self.rgm.rg],
+                    open(self.dsinfo.filename+".pickle","wb"),
+                    protocol=2)       
 
         
     
     @pyqtSlot(str)
     def reloadModel(self,ds_json):
         
-        dsinfo_ = json.loads(str(ds_json))        
-        dsinfo  = self.dsinfo
+        jsinfo  = attrdict.AttrDict(**json.loads(str(ds_json)))
         
-        dsinfo.update((k, dsinfo_[k]) for k in set(dsinfo).intersection(dsinfo_))
+        if not jsinfo.recompute:            
+            self.dsinfo,self.dataset,rg = pickle.load(open(self.dsinfo.filename+".pickle"))
+            self.rgm = ReebgraphModel(self.dataset,rg,self)
+        else:            
+            dsinfo  = self.dsinfo        
+            dsinfo.update((k, jsinfo[k]) for k in set(dsinfo).intersection(jsinfo))
         
-        
-        
-        if isinstance(dsinfo.subsampling,unicode) :
-            dsinfo.subsampling = map(int,dsinfo.subsampling.split(","))            
+            if isinstance(dsinfo.subsampling,unicode) :
+                dsinfo.subsampling = map(int,dsinfo.subsampling.split(","))            
 
-        if isinstance(dsinfo.spacing,unicode):
-            dsinfo.spacing = map(float,dsinfo.spacing.split(","))
-        
-      
-        if dsinfo.filename.endswith(".vti"):            
-            vd = read_vti(self.dsinfo.filename)
-            self.dataset = vd.arr[::dsinfo.subsampling[2],::dsinfo.subsampling[1],::dsinfo.subsampling[0]].copy()
-            dsinfo.spacing = vd.spacing
-            dsinfo.shape = vd.shape[::-1]
+            if isinstance(dsinfo.spacing,unicode):
+                dsinfo.spacing = map(float,dsinfo.spacing.split(","))
             
-            #np.savez(self.filename.replace(".vti",".npz"),self.dataset)
             
-        #if self.filename.endswith(".npz"):
-            #self.dataset = np.load(self.filename)["arr_0"]
+            self.dataset = None        
+            if dsinfo.filename.endswith(".vti"):            
+                vd = read_vti(self.dsinfo.filename)
+                self.dataset = vd.arr[::dsinfo.subsampling[2],::dsinfo.subsampling[1],::dsinfo.subsampling[0]].copy()
+                dsinfo.spacing = vd.spacing
+                dsinfo.shape = vd.shape[::-1]            
+                #np.savez(self.filename.replace(".vti",".npz"),self.dataset)
+            
+            #if self.filename.endswith(".npz"):
+                #self.dataset = np.load(self.filename)["arr_0"]
 
         
-        if self.dataset is not None:        
-            self.rgm = ReebgraphModel(self.dataset,self)
+            self.rgm = None
+            if self.dataset is not None:
+                
+                rg = pyrg.ContourTree()
+                rg.computeGrid3D(self.dataset,smethod=str(dsinfo.psmethod),N=int(dsinfo.N),T=float(dsinfo.T))
+                rg.computeFeatureHierarchy(smethod=str(dsinfo.smethod))
+                self.rgm = ReebgraphModel(self.dataset,rg,self)
             
-            self.webview.refresh(self.rgm)
+            
+        if self.dataset is not None:
             
             ## Create Volume Render pipeline
             self.vrPipe = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow())
             
-            self.vrPipe.setSpacing(tuple(s*m for s,m in zip(dsinfo.spacing,dsinfo.subsampling)))
+            self.vrPipe.setSpacing(tuple(s*m for s,m in zip(self.dsinfo.spacing,self.dsinfo.subsampling)))
             
             self.rgm.dsChanged.connect(self.vrPipe.reloadData)
         
-            self.webview.refresh(self.rgm,app=self)
+        
+        self.webview.refresh(self.rgm,app=self)
 
         
     
