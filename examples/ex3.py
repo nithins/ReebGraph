@@ -224,7 +224,9 @@ class WebViewWindow(QtGui.QWidget):
         if app is not None:
             self.app = app
             
-        self.view.setUrl(QUrl("params.html"))
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"params.html")       
+            
+        self.view.setUrl(QUrl(path))
 
     def setupInspector(self):
         page = self.view.page()
@@ -244,6 +246,7 @@ class WebViewWindow(QtGui.QWidget):
 class MainWindow(QtGui.QMainWindow):
     
     dsinfo = attrdict.AttrDict(
+        filepath="",
         filename="",
         subsampling = (2,2,1),
         spacing = (1,1,1),
@@ -260,80 +263,99 @@ class MainWindow(QtGui.QMainWindow):
     
     
     @pyqtSlot(result=str)
+    def chooseDataFile(self):
+        fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open Image file',filter="vtk (*.vtk *vti)"))
+        if fname:        
+            self.dsinfo.filename = os.path.basename(fname)
+            self.dsinfo.filepath = fname
+            
+        return self.dsinfo.filename
+        
+    
+    @pyqtSlot(result=str)
     def ds_json(self):
         return json.dumps(self.dsinfo)
     
     
-    @pyqtSlot()
-    def save(self):        
-        pickle.dump([self.dsinfo,self.dataset,self.rgm.rg],
-                    open(self.dsinfo.filename+".pickle","wb"),
-                    protocol=2)       
+    @pyqtSlot(name="save")
+    def save_slot(self):        
+        tname = os.path.splitext(self.dsinfo.filepath)[0] + ".rgbin"
+        
+        fname = QtGui.QFileDialog.getSaveFileName(
+            self,'Save Reebgraph Model',tname,"RG Models (*.rgbin)")
+        
+        if fname:        
+            pickle.dump([self.dsinfo,self.dataset,self.rgm.rg], open(fname,"wb"),protocol=2)       
+
+
+    @pyqtSlot(name="load")
+    def load_slot(self):
+        fname = QtGui.QFileDialog.getOpenFileName(
+            self,'Load Reebgraph Model',filter="RG Models (*.rgbin)")
+        
+        if fname:
+            self.load(str(fname))
 
         
     
-    @pyqtSlot(str)
-    def reloadModel(self,ds_json):
+    
+    def load(self,fname=None):
         
-        jsinfo  = attrdict.AttrDict(**json.loads(str(ds_json)))
-        
-        if not jsinfo.recompute:            
-            self.dsinfo,self.dataset,rg = pickle.load(open(self.dsinfo.filename+".pickle"))
+        if fname:        
+            self.dsinfo,self.dataset,rg = pickle.load(open(fname,"rb"))
             self.rgm = ReebgraphModel(self.dataset,rg,self)
-        else:            
-            dsinfo  = self.dsinfo        
-            dsinfo.update((k, jsinfo[k]) for k in set(dsinfo).intersection(jsinfo))
-        
-            if isinstance(dsinfo.subsampling,unicode) :
-                dsinfo.subsampling = map(int,dsinfo.subsampling.split(","))            
-
-            if isinstance(dsinfo.spacing,unicode):
-                dsinfo.spacing = map(float,dsinfo.spacing.split(","))
             
-            
-            self.dataset = None        
-            if dsinfo.filename.endswith(".vti") or dsinfo.filename.endswith(".vtk"):            
-                vd = read_vti(self.dsinfo.filename)
-                self.dataset = vd.arr[::dsinfo.subsampling[2],::dsinfo.subsampling[1],::dsinfo.subsampling[0]].copy()
-                dsinfo.spacing = vd.spacing
-                dsinfo.shape = vd.shape[::-1]            
-                #np.savez(self.filename.replace(".vti",".npz"),self.dataset)
-            
-            #if self.filename.endswith(".npz"):
-                #self.dataset = np.load(self.filename)["arr_0"]
-
-        
-            self.rgm = None
-            if self.dataset is not None:
-                
-                rg = pyrg.ContourTree()
-                rg.computeGrid3D(self.dataset,smethod=str(dsinfo.psmethod),N=int(dsinfo.N),T=float(dsinfo.T))
-                rg.computeFeatureHierarchy(smethod=str(dsinfo.smethod))
-                self.rgm = ReebgraphModel(self.dataset,rg,self)
-            
-            
-        if self.dataset is not None:
+        if self.dataset is not None and self.rgm:
             
             ## Create Volume Render pipeline
             self.vrPipe = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow())
             
-            self.vrPipe.setSpacing(tuple(s*m for s,m in zip(self.dsinfo.spacing,self.dsinfo.subsampling)))
+            self.vrPipe.setSpacing(tuple(s*m for s,m in zip(self.dsinfo.spacing,self.dsinfo.subsampling)))            
             
             self.rgm.dsChanged.connect(self.vrPipe.reloadData)
+            
+        self.webview.refresh(self.rgm,app=self)       
+        
+    
+    @pyqtSlot(str)
+    def compute(self,ds_json):
+        
+        jsinfo  = attrdict.AttrDict(**json.loads(str(ds_json)))
+        
+        dsinfo  = self.dsinfo
+        dsinfo.update((k, jsinfo[k]) for k in set(dsinfo).intersection(jsinfo))
+    
+        if isinstance(dsinfo.subsampling,unicode) :
+            dsinfo.subsampling = map(int,dsinfo.subsampling.split(","))            
+
+        if isinstance(dsinfo.spacing,unicode):
+            dsinfo.spacing = map(float,dsinfo.spacing.split(","))
         
         
-        self.webview.refresh(self.rgm,app=self)
+        self.dataset = None
+        self.rgm = None
+        
+        if dsinfo.filepath.endswith(".vti") or dsinfo.filepath.endswith(".vtk"):            
+            vd = read_vti(self.dsinfo.filepath)
+            self.dataset = vd.arr[::dsinfo.subsampling[2],::dsinfo.subsampling[1],::dsinfo.subsampling[0]].copy()
+            dsinfo.spacing = vd.spacing
+            dsinfo.shape = vd.shape[::-1]            
+                
+            rg = pyrg.ContourTree()
+            rg.computeGrid3D(self.dataset,smethod=str(dsinfo.psmethod),N=int(dsinfo.N),T=float(dsinfo.T))
+            rg.computeFeatureHierarchy(smethod=str(dsinfo.smethod))
+            self.rgm = ReebgraphModel(self.dataset,rg,self)
+                
+        self.load()         
+            
 
         
     
     
  
     def __init__(self, parent = None, filename=""):
-        QtGui.QMainWindow.__init__(self, parent)   
+        QtGui.QMainWindow.__init__(self, parent)
         
-        self.dsinfo.filename = filename
-
-                        
         # Create UI        
         self.splitter = QtGui.QSplitter(self)
         self.splitter.setOrientation(Qt.Horizontal)
@@ -350,11 +372,18 @@ class MainWindow(QtGui.QMainWindow):
 
         
         self.setCentralWidget(self.splitter)
-        
         self.show()
         
-        #self.reloadModel("")
-        self.webview.refresh(self.rgm,app=self)
+        
+        if filename.endswith(".vti") or filename.endswith(".vtk"):        
+            self.dsinfo.filepath = filename
+            self.dsinfo.filename = os.path.basename(filename)
+        
+        self.load(filename if filename.endswith(".rgbin") else None)
+
+        
+        
+        
         
 
          

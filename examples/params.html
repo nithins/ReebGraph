@@ -3,39 +3,66 @@
 
 <head>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<style>
+
+.icaption {
+    width: 150px;
+    height:35px;
+    display: inline-block;
+    text-align:center;
+    background-color:#efefff;
+}
+
+
+</style>
+
 </head>
 
 <body>
 
 <h3> Dataset </h3>
 
-Image File:<input type="input" value="" title="filename: .vti files are accepted" id="filename"/><br>
-Size:<input type="text" value="0,0,0" id="shape" style="background-color: #72A4A2" readonly><br>
-Subsample:<input type="input" value="1,1,1" id="subsampling"/><br>
+
+    
+<span class="icaption">
+Image File
+<input type="button" 
+    title="*.vti *.vtk (3D structured grids)"  
+    onclick='$("#filename").text(app.chooseDataFile())' 
+    value="Edit" /> 
+
+</span>
+
+<span id="filename"></span>
+<br>
+<span class="icaption">Size</span><span id="shape">0,0,0</span><br>
+<span class="icaption">Subsample</span><input type="input" value="1,1,1" id="subsampling"/><br>
 
 
 <h3> Reebgraph computation </h3>
 
-Hierarchy Type:
+<span class="icaption">Hierarchy Type</span>
 <select id="smethod">
   <option value="Hvol">Hvol</option>
   <option value="Pers">Pers</option>
 </select><br>
 
 
-Presimplification Type:
+<span class="icaption">Presimplification</span>
 <select onchange="PresimpMethodChanged()" id="psmethod">
   <option value="HvolN">HvolN</option>
   <option value="PersT">PersT</option>
   <option value="PersN">PersN</option>
-</select><br>
+  <option value="">None</option>
+</select> 
+<span id="N"> N:<input type="input" value="1000" title="N" id="Nval" size="8"/> </span>
+<span id="T"> T:<input type="input" value="0.01" title="T" id="Tval" size="8"/></span>
+<br>
 
-<div id="N"> N:<input type="input" value="1000" title="N" id="Nval"/></div>
-<div id="T"> T:<input type="input" value="0.01" title="T" id="Tval"/></div><br>
-
-<input type="button" onclick="ReloadModel(true)" value="Compute" />
+<input type="button" onclick="ComputeModel()" value="Compute" />
 <input type="button" onclick="app.save()" value="Save" />
-<input type="button" onclick="ReloadModel(false)" value="Load" />
+<input type="button" onclick="app.load()" value="Load" />
 
 <h3> Volume Rendering </h3>
 Spacing:<input type="input" value="1,1,1" id="spacing"/><br>
@@ -51,42 +78,44 @@ Spacing:<input type="input" value="1,1,1" id="spacing"/><br>
 function PresimpMethodChanged(){
 
     if($("#psmethod").val() == "PersT") {
-        $("#T").css("display", "block")
+        $("#T").css("display", "inline-block")
         $("#N").css("display", "none")
     }
     else {
         $("#T").css("display", "none")
-        $("#N").css("display", "block")
+        $("#N").css("display", "inline-block")
     }
 }
 
 function onReload() {
-
-    PresimpMethodChanged()
     
     var ds = JSON.parse(app.ds_json())
     
-     $("#filename").val(ds.filename)
+     $("#filename").text(ds.filename)
      $("#subsampling").val(ds.subsampling)
      $("#spacing").val(ds.spacing)
-     $("#shape").val(ds.shape)
+     $("#shape").text(ds.shape)
+     $("#smethod").val(ds.smethod)
+     $("#psmethod").val(ds.psmethod)
+     $("#Nval").val(ds.N)
+     $("#Tval").val(ds.T)
+     
+     PresimpMethodChanged()
 }
 
 
-function ReloadModel(recompute){
+function ComputeModel(){
 
     var ds = {
-        filename:   "" + $("#filename").val(),
         spacing:    "" + $("#spacing").val(),
         subsampling:"" + $("#subsampling").val(),
         smethod:    "" + $("#smethod").val(),
         psmethod:   "" + $("#psmethod").val(),
         N:0 + $("#Nval").val(),
         T:0.0 + $("#Tval").val(),
-        recompute:recompute
     }
    
-    app.reloadModel(JSON.stringify(ds))
+    app.compute(JSON.stringify(ds))
 }
 
 
