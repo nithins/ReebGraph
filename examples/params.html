@@ -89,7 +89,7 @@ function PresimpMethodChanged(){
 
 function onReload() {
     
-    var ds = JSON.parse(app.ds_json())
+    var ds = JSON.parse(app.dsinfo())
     
      $("#filename").text(ds.filename)
      $("#subsampling").val(ds.subsampling)
@@ -115,7 +115,8 @@ function ComputeModel(){
         T:0.0 + $("#Tval").val(),
     }
    
-    app.compute(JSON.stringify(ds))
+    app.dsinfo(JSON.stringify(ds))
+    app.compute()
 }
 
 

@@ -248,7 +248,7 @@ class MainWindow(QtGui.QMainWindow):
     dsinfo = attrdict.AttrDict(
         filepath="",
         filename="",
-        subsampling = (2,2,1),
+        subsampling = (1,1,1),
         spacing = (1,1,1),
         smethod = "Hvol",
         psmethod="HvolN",
@@ -272,31 +272,53 @@ class MainWindow(QtGui.QMainWindow):
         return self.dsinfo.filename
         
     
-    @pyqtSlot(result=str)
-    def ds_json(self):
+    @pyqtSlot(result=str,name="dsinfo")
+    def dsinfo_slot(self):
         return json.dumps(self.dsinfo)
+    
+    @pyqtSlot(str,name="dsinfo")
+    def set_dsinfo_slot(self,jsinfo):
+        
+        jsinfo  = attrdict.AttrDict(**json.loads(str(jsinfo)))
+        
+        dsinfo  = self.dsinfo
+        dsinfo.update((k, jsinfo[k]) for k in set(dsinfo).intersection(jsinfo))
+    
+        if isinstance(dsinfo.subsampling,unicode) :
+            dsinfo.subsampling = map(int,dsinfo.subsampling.split(","))            
+
+        if isinstance(dsinfo.spacing,unicode):
+            dsinfo.spacing = map(float,dsinfo.spacing.split(","))
+            
+        self.dsinfo = dsinfo
+
     
     
     @pyqtSlot(name="save")
     def save_slot(self):        
-        tname = os.path.splitext(self.dsinfo.filepath)[0] + ".rgbin"
-        
+        tname = os.path.splitext(self.dsinfo.filepath)[0] + ".rgbin"        
         fname = QtGui.QFileDialog.getSaveFileName(
             self,'Save Reebgraph Model',tname,"RG Models (*.rgbin)")
         
-        if fname:        
-            pickle.dump([self.dsinfo,self.dataset,self.rgm.rg], open(fname,"wb"),protocol=2)       
+        if fname:
+            self.save(fname)                  
 
 
     @pyqtSlot(name="load")
     def load_slot(self):
         fname = QtGui.QFileDialog.getOpenFileName(
-            self,'Load Reebgraph Model',filter="RG Models (*.rgbin)")
-        
+            self,'Load Reebgraph Model',filter="RG Models (*.rgbin)")        
         if fname:
             self.load(str(fname))
+            
+    
+    @pyqtSlot(name="compute")
+    def compute_slot(self):
+        self.compute()
+                
 
-        
+    def save(self,fname=None):
+        pickle.dump([self.dsinfo,self.dataset,self.rgm.rg], open(fname,"wb"),protocol=2)
     
     
     def load(self,fname=None):
@@ -318,22 +340,12 @@ class MainWindow(QtGui.QMainWindow):
         
     
     @pyqtSlot(str)
-    def compute(self,ds_json):
-        
-        jsinfo  = attrdict.AttrDict(**json.loads(str(ds_json)))
-        
-        dsinfo  = self.dsinfo
-        dsinfo.update((k, jsinfo[k]) for k in set(dsinfo).intersection(jsinfo))
-    
-        if isinstance(dsinfo.subsampling,unicode) :
-            dsinfo.subsampling = map(int,dsinfo.subsampling.split(","))            
-
-        if isinstance(dsinfo.spacing,unicode):
-            dsinfo.spacing = map(float,dsinfo.spacing.split(","))
-        
+    def compute(self):
         
         self.dataset = None
         self.rgm = None
+        
+        dsinfo = self.dsinfo
         
         if dsinfo.filepath.endswith(".vti") or dsinfo.filepath.endswith(".vtk"):            
             vd = read_vti(self.dsinfo.filepath)
@@ -379,11 +391,7 @@ class MainWindow(QtGui.QMainWindow):
             self.dsinfo.filepath = filename
             self.dsinfo.filename = os.path.basename(filename)
         
-        self.load(filename if filename.endswith(".rgbin") else None)
-
-        
-        
-        
+        self.load(filename if filename.endswith(".rgbin") else None)       
         
 
          
