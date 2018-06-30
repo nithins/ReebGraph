@@ -38,14 +38,19 @@ class ReebgraphModel(QObject):
 
     def make_arcTree(self) :
         
+        uv,uc = np.unique(self.rg.arcmap,return_counts=True)
+        avols = np.zeros(len(self.rg.arcs),dtype=np.int32)
+        avols[uv] = uc
+        
         arcTree = {}
         
-        for a,b in self.rg.arcs:
+        for i,(a,b) in enumerate(self.rg.arcs):
             arcTree[a,b] = {
                 "name":str((a,b)),
                 "pers":float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(a,b),
                 "weight":1.0,
+                "volume":avols[i],
                 "par": None,
                 "selected":False,
                 }
@@ -110,8 +115,12 @@ class ReebgraphModel(QObject):
         nodes,arcs = self.rg.nodes,self.rg.arcs
         
         arcTreeTD = {}
+        uv,uc = np.unique(self.rg.arcmap,return_counts=True)
+        avols = np.zeros(len(self.rg.arcs),dtype=np.int32)
+        avols[uv] = uc
+
         
-        for a,b in self.rg.arcs:
+        for i,(a,b) in enumerate(self.rg.arcs):
             a,b = int(a),int(b)
                         
             arcTreeTD[str((a,b))] = {
@@ -119,8 +128,10 @@ class ReebgraphModel(QObject):
                 #"size":float(nodes[b]["fn"] - nodes[a]["fn"]),
                 #"size":10,
                 "size":1 + 100*float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
+                "pers":float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(a,b),
                 "weight":1.0,
+                "volume":float(avols[i]),
                 "selected":self.arcTree[(a,b)]["selected"],
                 }
         
@@ -137,6 +148,7 @@ class ReebgraphModel(QObject):
                 "name":d_u,
                 "children": [arcTreeTD[clu],arcTreeTD[d_m],arcTreeTD[m_u]],
                 #"size":float(nodes[u]["fn"] - nodes[d]["fn"]),
+                "pers":float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(d,u),
                 "weight":1.0,                
                 "selected":self.arcTree[int(d),int(u)]["selected"],
@@ -280,7 +292,7 @@ class MainWindow(QtGui.QMainWindow):
             
             
             self.dataset = None        
-            if dsinfo.filename.endswith(".vti"):            
+            if dsinfo.filename.endswith(".vti") or dsinfo.filename.endswith(".vtk"):            
                 vd = read_vti(self.dsinfo.filename)
                 self.dataset = vd.arr[::dsinfo.subsampling[2],::dsinfo.subsampling[1],::dsinfo.subsampling[0]].copy()
                 dsinfo.spacing = vd.spacing

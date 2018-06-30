@@ -53,7 +53,7 @@ def read_vti(f):
     
     from vtk.util import numpy_support as nps
     
-    reader = vtk.vtkXMLImageDataReader()
+    reader = vtk.vtkXMLImageDataReader() if f.endswith(".vti") else vtk.vtkStructuredPointsReader()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
     reader.SetFileName(f);
     reader.Update();   
     
@@ -121,6 +121,7 @@ class VolumeRenderPipeine:
         # we have to store them in a class that stores volume prpoperties.
         volumeProperty = vtk.vtkVolumeProperty()
         volumeProperty.SetColor(colorFunc)
+        volumeProperty.ShadeOn()
         volumeProperty.SetScalarOpacity(alphaChannelFunc)
 
         # We can finally create our volume. We also have to specify the data for it, as well as how the data will be rendered.
