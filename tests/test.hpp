@@ -1,19 +1,19 @@
 #ifndef TEST_HPP
 #define TEST_HPP
 
-#include "../utl.h"
+#include "../src/utl.h"
 
-#include "../DisjointSets.hpp"
+#include "../src/DisjointSets.hpp"
 #include <iostream>
-#include "../Grid3D.hpp"
+#include "../src/Grid3D.hpp"
 #include <chrono>
-#include "../MergeTree.hpp"
-#include "../ContourTreeData.hpp"
-#include "../SimplifyCT.hpp"
-#include "../Persistence.hpp"
-#include "../TriMesh.hpp"
-#include "../TopologicalFeatures.hpp"
-#include "../HyperVolume.hpp"
+#include "../src/MergeTree.hpp"
+#include "../src/ContourTreeData.hpp"
+#include "../src/SimplifyCT.hpp"
+#include "../src/Persistence.hpp"
+#include "../src/TriMesh.hpp"
+#include "../src/TopologicalFeatures.hpp"
+#include "../src/HyperVolume.hpp"
 #include <fstream>
 #include <cmath>
 

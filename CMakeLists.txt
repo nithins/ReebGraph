@@ -6,46 +6,46 @@ set (CMAKE_CXX_STANDARD 14)
 
 
 SET(ALL_SRCS
-ContourTree.hpp
-ContourTree.cpp
+src/ContourTree.hpp
+src/ContourTree.cpp
 
-TriMesh.hpp
-TriMesh.cpp
+src/TriMesh.hpp
+src/TriMesh.cpp
 
-TopologicalFeatures.hpp
-TopologicalFeatures.cpp
+src/TopologicalFeatures.hpp
+src/TopologicalFeatures.cpp
 
 #test.hpp
 
-SimplifyCT.hpp
-SimplifyCT.cpp
+src/SimplifyCT.hpp
+src/SimplifyCT.cpp
 
-SimplifyCT2.hpp
-SimplifyCT2.cpp
+src/SimplifyCT2.hpp
+src/SimplifyCT2.cpp
 
-SimFunction.hpp
-ScalarFunction.hpp
+src/SimFunction.hpp
+src/ScalarFunction.hpp
 
-Persistence.hpp
-Persistence.cpp
+src/Persistence.hpp
+src/Persistence.cpp
 
-MergeTree.hpp
-MergeTree.cpp
+src/MergeTree.hpp
+src/MergeTree.cpp
 
 #main.cpp
 
-HyperVolume.hpp
-HyperVolume.cpp
+src/HyperVolume.hpp
+src/HyperVolume.cpp
 
-Grid3D.hpp
-Grid3D.cpp
+src/Grid3D.hpp
+src/Grid3D.cpp
 
-DisjointSets.hpp
-constants.h
-utl.h
+src/DisjointSets.hpp
+src/constants.h
+src/utl.h
 
-ContourTreeData.hpp
-ContourTreeData.cpp
+src/ContourTreeData.hpp
+src/ContourTreeData.cpp
 )
 
 
@@ -56,7 +56,7 @@ set_target_properties(reebgraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/pybind11
         ${CMAKE_CURRENT_BINARY_DIR}/pybind11)        
     
-pybind11_add_module(pyrg $<TARGET_OBJECTS:reebgraph> pymain.cpp)
+pybind11_add_module(pyrg $<TARGET_OBJECTS:reebgraph> src/pymain.cpp)
 target_link_libraries(pyrg PUBLIC pybind11::module ${PYTHON_LIBRARY})
 set_target_properties(pyrg PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" )
 target_link_libraries(pyrg ${ALL_LIBS})

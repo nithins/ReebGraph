@@ -3,9 +3,6 @@
 
 #include <pybind11/pybind11.h>
 
-#include "../utl.h"
-#include "../DisjointSets.hpp"
-
 #include "test.hpp"
 
 using namespace contourtree;

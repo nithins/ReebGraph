@@ -1,8 +1,6 @@
 #include <iostream>
 #include <sstream>
 
-#include "../utl.h"
-
 #include "test.hpp"
 
 using namespace contourtree;
