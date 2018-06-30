@@ -90,24 +90,26 @@ function sumByPers(d) {return d.pers;}
 function sumByVol(d) {return d.volume;}
 function sumByFwt(d) {return d.weight;}
 function sumByConst(d) {return 1;}
-    
+ 
 
-function setup(root) {
+function setup(data) {
   //if (error) throw error;
   
-  function fillfunc(d){
-    var n= d.data.type == "min-sad" ? "min-sad-not-selected" : (d.data.type == "sad-max" ? "sad-max-not-selected": "def-not-selected");
-    if(d.data.selected == true) n = d.data.type == "min-sad" ? "min-sad-selected" : (d.data.type == "sad-max" ? "sad-max-selected": "def-selected")
-    return "url(#"+n+")";
+  function fillfunc(d){  
+    return "url(#"
+     + ((d.data.type == "min-sad"||d.data.type == "sad-max") ? d.data.type: "def")
+     + ((d.data.selected == false) ? "-not" : "")
+     + "-selected)";
   }
   
   function selectFunc(d){  
     d.data.selected = !(d.data.selected == true);
     d3.select(this).attr("fill",fillfunc(d));
-    rgm.selectArc(d.data.name,d.data.selected);
+    rgm.arcSelected(d.data.name,d.data.selected);
   }
+  
 
-  root = d3.hierarchy(root)
+  var root = d3.hierarchy(data)
       .sum(sumByFwt)
       .sort(function(a, b) { return b.value - a.value; });
       
@@ -149,20 +151,36 @@ function simpThreshChanged(t){
 }
 
 
-function changedSumBy(sum) {
+function changedSumBy(func) {
 
-    pack(rdat.root.sum(sum));
+    var relayout = function() {
+    
+        pack(rdat.root.sum(function(d) {return rgm.arcVisible(d.name)?func(d):0}));
 
-    rdat.node.transition()
-         .duration(750)
-         .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-         .select("circle")
-         .attr("r", function(d) { return d.r; })
+        rdat.node.transition()
+            .duration(750)
+            .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+            .select("circle")
+            .attr("r", function(d) { return d.r; })
+    }
+    
+    var hideFunc = function(d) {    
+        d.data.visible = false;
+        rgm.arcVisible(d.data.name,d.data.visible);        
+        relayout();
+    }
+    
+    relayout();
+    rdat.node.on('dblclick',hideFunc)
 }
+
+
+
   
 
 document.getElementById("simpSlider").oninput = function() {simpThreshChanged(this.value/500);};
 simpThreshChanged(0.002)
+changedSumBy(sumByFwt)
 
 
 

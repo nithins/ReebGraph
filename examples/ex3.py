@@ -10,7 +10,8 @@ import pyrg
 import vtk
 
 from ex2 import create_3gauss,VolumeRenderPipeine,read_vti
-import json,attrdict
+import json
+from attrdict import AttrDict
 import cPickle as pickle
 
 
@@ -45,7 +46,7 @@ class ReebgraphModel(QObject):
         arcTree = {}
         
         for i,(a,b) in enumerate(self.rg.arcs):
-            arcTree[a,b] = {
+            arcTree[a,b] = AttrDict(**{
                 "name":str((a,b)),
                 "pers":float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(a,b),
@@ -53,18 +54,20 @@ class ReebgraphModel(QObject):
                 "volume":avols[i],
                 "par": None,
                 "selected":False,
-                }
+                "visible":True,
+                })
                                  
         for (t,c,m,a,b),w in zip(self.rg.fhier,self.rg.fwts):
             
-            arcTree[(a,b)] = {
+            arcTree[(a,b)] = AttrDict(**{
                 "name":str((a,b)),
                 "pers":float(self.rg.nodes[b]["fn"] - self.rg.nodes[a]["fn"]),
                 "type":self.get_type(a,b),
                 "weight":1.0,
                 "par": None,
                 "selected":False,
-                }
+                "visible":True,
+                })
 
             clu = (c,m) if t == 0 else (m,c)
             
@@ -82,11 +85,14 @@ class ReebgraphModel(QObject):
             a,b = tuple(map(int,self.rg.arcs[ano]))
             
             n  = self.arcTree[a,b]
-            s  = n["selected"]
-            while n["par"] != None:
-                n  = self.arcTree[n["par"]]
-                s |= n["selected"]
-            arcRemap[ano] = s
+            s  = n.selected
+            v  = n.visible
+            while n.par != None:
+                n  = self.arcTree[n.par]
+                s |= n.selected
+                v &= n.visible
+                
+            arcRemap[ano] = s&v
             
         self.ds[:] = self.ods*arcRemap[self.rg.arcmap]
         self.dsChanged.emit()
@@ -133,6 +139,7 @@ class ReebgraphModel(QObject):
                 "weight":1.0,
                 "volume":float(avols[i]),
                 "selected":self.arcTree[(a,b)]["selected"],
+                "visible":self.arcTree[(a,b)]["visible"],
                 }
         
         
@@ -152,6 +159,7 @@ class ReebgraphModel(QObject):
                 "type":self.get_type(d,u),
                 "weight":1.0,                
                 "selected":self.arcTree[int(d),int(u)]["selected"],
+                "visible":self.arcTree[int(d),int(u)]["visible"],
                 }
             
             del arcTreeTD[m_u]; del arcTreeTD[d_m]; del arcTreeTD[clu]
@@ -161,24 +169,42 @@ class ReebgraphModel(QObject):
             break
         
         return json.dumps(arcTreeTD)
-
-    @pyqtSlot(str,bool,result=bool)
-    def selectArc(self,aname,selected):
+    
+    def get_arc(self,aname):
         try:
             a,b = tuple(map(int,aname[1:-1].split(",")))
-            self.arcTree[a,b]["selected"] = selected
-            self.adjust_ds()
-        except Exception as e:
-            print "Selection Failed aname=",aname,"e=",e
-            return False
-        return True
-            
-        
+            return self.arcTree[a,b]
+        except e:
+            print "get_arc failed aname=",aname,"e=",e        
+
+    @pyqtSlot(str,bool)
+    def arcSelected(self,aname,v):
+        self.get_arc(aname).selected = v
+        self.adjust_ds()
+
+    @pyqtSlot(str,result=bool,name="arcSelected")
+    def arcIsSelected(self,aname,v):
+        return self.get_arc(aname).selected
+
+    @pyqtSlot(str,bool)
+    def arcVisible(self,aname,v):
+        self.get_arc(aname).visible = v
+        self.adjust_ds()
+
+    @pyqtSlot(str,result=bool,name="arcVisible")
+    def arcIsVisible(self,aname):
+        n,v  = self.get_arc(aname),True        
+        while n.par != None:
+            v &= n.visible
+            n  = self.arcTree[n.par]
+        return v            
+
+
 
     
-    @pyqtSlot()
-    def quit(self):
-        QApplication.quit()
+    #@pyqtSlot()
+    #def quit(self):
+        #QApplication.quit()
         
 
 class WebViewWindow(QtGui.QWidget):
@@ -245,7 +271,7 @@ class WebViewWindow(QtGui.QWidget):
        
 class MainWindow(QtGui.QMainWindow):
     
-    dsinfo = attrdict.AttrDict(
+    dsinfo = AttrDict(
         filepath="",
         filename="",
         subsampling = (1,1,1),
@@ -279,7 +305,7 @@ class MainWindow(QtGui.QMainWindow):
     @pyqtSlot(str,name="dsinfo")
     def set_dsinfo_slot(self,jsinfo):
         
-        jsinfo  = attrdict.AttrDict(**json.loads(str(jsinfo)))
+        jsinfo  = AttrDict(**json.loads(str(jsinfo)))
         
         dsinfo  = self.dsinfo
         dsinfo.update((k, jsinfo[k]) for k in set(dsinfo).intersection(jsinfo))
