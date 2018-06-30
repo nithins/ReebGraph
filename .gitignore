@@ -10,3 +10,8 @@ tests/pyrg.so
 examples/*.so
 examples/*.pyc
 examples/*.pyd
+
+#app binary files
+ReebAnatomy/*.so
+ReebAnatomy/*.pyc
+ReebAnatomy/*.pyd

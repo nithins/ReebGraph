@@ -6,49 +6,9 @@ from PyQt4 import QtCore, QtGui
 from vtk.qt4.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import numpy as np
 import pyrg
-#import attrdict
-
-def create_3gauss():
-    """
-    make a dataset with 3 gaussian features
-    """
-    import numpy as np
-    from scipy.stats import multivariate_normal
+import attrdict
 
 
-    def make_gaussian(size=(30,30,30),mu=(0,0,0),sigma=(0.25,0.25,0.25)):
-
-        x, y, z = np.mgrid[-1.0:1.0:64j, -1.0:1.0:64j,-1.0:1.0:64j]
-        # Need an (N, 2) array of (x, y) pairs.
-        xyz = np.column_stack([x.flat, y.flat,z.flat])
-
-        mu = np.array(mu)
-
-        sigma = np.array(sigma)
-        covariance = np.diag(sigma**2)
-
-        f = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
-
-        # Reshape back to a (30, 30) grid.
-        f = f.reshape(x.shape)
-        
-        f = np.array(f,dtype=np.float32)
-        
-        return f
-
-    
-    arr   = make_gaussian(mu=(0,0,0))  
-    arr  += make_gaussian(mu=(0.5,0,0))  
-    arr  += make_gaussian(mu=(0.5,-0.5,0.5))        
-    return arr
-
-    #data_matrix = np.zeros([75, 75, 75], dtype=np.uint8)
-    #data_matrix[0:35, 0:35, 0:35] = 50
-    #data_matrix[25:55, 25:55, 25:55] = 100
-    #data_matrix[45:74, 45:74, 45:74] = 150
-
-    #return data_matrix
-    
 def read_vti(f):
     
     from vtk.util import numpy_support as nps
@@ -65,8 +25,7 @@ def read_vti(f):
     arr = np.array(arr,np.float32).reshape(dim)
     arr = (arr - arr.min())/(arr.max() - arr.min())
     
-    #return attrdict.AttrDict(arr=arr,shape=arr.shape,spacing=imageData.GetSpacing())
-    return arr
+    return attrdict.AttrDict(arr=arr,shape=arr.shape,spacing=imageData.GetSpacing()) 
 
 
 
@@ -175,93 +134,3 @@ class VolumeRenderPipeine:
     def setSpacing(self,v):
         self.imageData.SetSpacing(v)
         self.reloadData()
-
-
-class ReebgraphRenderPipeline:
-    """
-    Given an input numpy volume this will volume render to given vtkRenderWindow
-    """ 
-    def __init__(self, rg, renderWindow):
-        
-        self.rg           = rg            # input reeb graph
-        self.renderWindow = renderWindow  # output render window
-        
-        # Create source
-        source = vtk.vtkSphereSource()
-        source.SetCenter(0, 0, 0)
-        source.SetRadius(5.0)
- 
-        # Create a mapper
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputConnection(source.GetOutputPort())
- 
-        # Create an actor
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-         
-        
-        # add a renderer to the widget
-        self.ren = vtk.vtkRenderer()
-        self.renderWindow.AddRenderer(self.ren)
-        
-        # add a actors and ResetCamera
-        self.ren.AddActor(actor) 
-        self.ren.ResetCamera()
-        
-        #prepare interactor
-        self.iren = self.renderWindow.GetInteractor()
-        self.iren.Initialize()
-        
-
- 
-class MainWindow(QtGui.QMainWindow):
- 
-    def __init__(self, parent = None, dataset=None):
-        QtGui.QMainWindow.__init__(self, parent)
-        
-        # Create Dataset
-        self.dataset = create_3gauss() if dataset is None else dataset
-        
-        # Compute Reeb graph
-        #self.rg = pyrg.computeCT_Grid3D(self.dataset)        
-        
-        # Create UI 
-        self.frame = QtGui.QFrame()
- 
-        self.hl = QtGui.QHBoxLayout()
-        self.vtkWidget_vr = QVTKRenderWindowInteractor(self.frame)
-        self.vtkWidget_rg = QVTKRenderWindowInteractor(self.frame)
-        self.hl.addWidget(self.vtkWidget_vr)
-        self.hl.addWidget(self.vtkWidget_rg)
-        
-        self.frame.setLayout(self.hl)
-        self.setCentralWidget(self.frame)
- 
-        self.show()          
-        
-        # Create Volume Render pipeline
-        self.volumeRenderPipeline = VolumeRenderPipeine(self.dataset,self.vtkWidget_vr.GetRenderWindow()) 
- 
-        # Create Reebgraph Render pipeline
-        self.reebgraphRenderPipeline = ReebgraphRenderPipeline(self.dataset,self.vtkWidget_rg.GetRenderWindow()) 
-        
-        
-                
-
-
- 
- 
-if __name__ == "__main__":
- 
-    
-    dataset = None
-    
-    if len(sys.argv) >1:
-        dataset = read_vti(sys.argv[1])
-
-    app = QtGui.QApplication(sys.argv)
- 
-    window = MainWindow(dataset=dataset)
- 
-    sys.exit(app.exec_())
-        

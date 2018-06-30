@@ -76,4 +76,6 @@ endif (WIN32)
 add_custom_command(TARGET pyrg POST_BUILD COMMAND ${CMAKE_COMMAND} -E
                 copy $<TARGET_FILE:pyrg> ${CMAKE_CURRENT_SOURCE_DIR}/examples/${PYRG_MODULE_NAME})
 
+add_custom_command(TARGET pyrg POST_BUILD COMMAND ${CMAKE_COMMAND} -E
+                copy $<TARGET_FILE:pyrg> ${CMAKE_CURRENT_SOURCE_DIR}/ReebAnatomy/${PYRG_MODULE_NAME})
 

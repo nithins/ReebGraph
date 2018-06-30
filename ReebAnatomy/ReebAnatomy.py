@@ -9,7 +9,7 @@ import numpy as np
 import pyrg
 import vtk
 
-from ex2 import create_3gauss,VolumeRenderPipeine,read_vti
+from renderer import VolumeRenderPipeine,read_vti
 import json
 from attrdict import AttrDict
 import cPickle as pickle
@@ -426,7 +426,7 @@ def main():
 
     app = QtGui.QApplication(sys.argv)
  
-    window = MainWindow(filename="" if sys.argv <=1 else sys.argv[1])
+    window = MainWindow(filename=("" if len(sys.argv) <=1 else sys.argv[1]))
  
     sys.exit(app.exec_())
     
